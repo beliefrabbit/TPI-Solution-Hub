@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Tag, CaseStudy, CategoryType, TechDomain } from '../types';
 import { storageService } from '../services/storage';
-import { Trash2, Plus, Download, X, Edit2, Upload, Save, RotateCcw, FileSpreadsheet, AlertTriangle, ChevronDown, ChevronUp, Users, Briefcase, Code, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Trash2, Plus, Download, X, Edit2, Upload, Save, RotateCcw, FileSpreadsheet, AlertTriangle, ChevronDown, ChevronUp, Users, Briefcase, Code, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CheckCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface AdminPanelProps {
@@ -60,6 +60,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const [editingTechDomainId, setEditingTechDomainId] = useState<string | null>(null);
   const [techDomainForm, setTechDomainForm] = useState({ name: '', count: 0 });
   const [expandedTechDomains, setExpandedTechDomains] = useState<Set<string>>(new Set());
+  
+  // Success notification state
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     refreshData();
@@ -159,7 +163,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
   const handleSaveCase = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!caseForm.title || !caseForm.imageUrl) return;
+    if (!caseForm.title) {
+      alert('請填寫必填欄位：項目名稱');
+      return;
+    }
     
     const payload = {
       title: caseForm.title,
@@ -174,14 +181,27 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       features: caseForm.features
     };
 
-    if (editingCaseId) {
-      storageService.updateCase(editingCaseId, payload);
-    } else {
-      storageService.addCase(payload);
+    try {
+      if (editingCaseId) {
+        storageService.updateCase(editingCaseId, payload);
+        setSuccessMessage('案例已成功更新！');
+      } else {
+        storageService.addCase(payload);
+        setSuccessMessage('案例已成功新增！');
+      }
+      
+      resetCaseForm();
+      refreshData();
+      
+      // Show success animation
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+      }, 3000);
+    } catch (error) {
+      console.error('儲存失敗:', error);
+      alert('儲存失敗，請稍後再試');
     }
-    
-    resetCaseForm();
-    refreshData();
   };
   
   // AI Image Generation using Gemini API
@@ -229,7 +249,7 @@ ${type === 'solution' ? `解決方案說明：${caseForm.solutionDescription || 
 ${context}
 
 請只輸出圖片生成提示詞，不要包含其他說明文字。`
-        : `請為以下案例的解決方案架構生成一張專業的技術架構圖提示詞（prompt），用於 AI 圖片生成服務（如 DALL-E、Midjourney、Stable Diffusion）。圖片應該呈現解決方案的技術架構和流程。
+        : `請為以下案例的解決方案圖表生成一張專業的技術架構圖提示詞（prompt），用於 AI 圖片生成服務（如 DALL-E、Midjourney、Stable Diffusion）。圖片應該呈現解決方案的技術架構和流程。
 
 要求：
 1. 提示詞必須是英文
@@ -306,14 +326,25 @@ ${context}
     e.preventDefault();
     if (!newTagName) return;
 
-    storageService.addTag({
-      name: newTagName,
-      type: newTagType
-    });
-    
-    setNewTagName('');
-    setIsAddingTag(false);
-    refreshData();
+    try {
+      storageService.addTag({
+        name: newTagName,
+        type: newTagType
+      });
+      
+      setNewTagName('');
+      setIsAddingTag(false);
+      refreshData();
+      
+      setSuccessMessage('標籤已成功新增！');
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+      }, 3000);
+    } catch (error) {
+      console.error('新增標籤失敗:', error);
+      alert('新增標籤失敗，請稍後再試');
+    }
   };
 
   const handleDeleteTag = (id: string) => {
@@ -326,19 +357,34 @@ ${context}
   // Tech Domain Handlers
   const handleSaveTechDomain = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!techDomainForm.name || techDomainForm.count < 0) return;
-    
-    if (editingTechDomainId) {
-      storageService.updateTechDomain(editingTechDomainId, techDomainForm);
-    } else {
-      storageService.addTechDomain(techDomainForm);
+    if (!techDomainForm.name || techDomainForm.count < 0) {
+      alert('請填寫技術領域名稱和人員數量');
+      return;
     }
     
-    setTechDomainForm({ name: '', count: 0 });
-    setEditingTechDomainId(null);
-    setIsEditingTechDomain(false);
-    setIsAddingTechDomain(false);
-    refreshData();
+    try {
+      if (editingTechDomainId) {
+        storageService.updateTechDomain(editingTechDomainId, techDomainForm);
+        setSuccessMessage('技術領域已成功更新！');
+      } else {
+        storageService.addTechDomain(techDomainForm);
+        setSuccessMessage('技術領域已成功新增！');
+      }
+      
+      setTechDomainForm({ name: '', count: 0 });
+      setEditingTechDomainId(null);
+      setIsEditingTechDomain(false);
+      setIsAddingTechDomain(false);
+      refreshData();
+      
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+      }, 3000);
+    } catch (error) {
+      console.error('儲存技術領域失敗:', error);
+      alert('儲存失敗，請稍後再試');
+    }
   };
 
   const handleEditTechDomain = (techDomain: TechDomain) => {
@@ -602,7 +648,25 @@ ${context}
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
+      {/* Success Notification */}
+      {showSuccess && (
+        <div className="fixed top-20 right-4 z-[100] animate-in slide-in-from-right-4 fade-in duration-300">
+          <div className="bg-green-600/90 backdrop-blur-md border border-green-400/50 rounded-lg shadow-[0_0_30px_rgba(34,197,94,0.5)] p-4 flex items-center gap-3 min-w-[300px]">
+            <CheckCircle className="text-white flex-shrink-0" size={24} />
+            <div className="flex-1">
+              <p className="text-white font-mono font-bold text-sm">{successMessage}</p>
+            </div>
+            <button 
+              onClick={() => setShowSuccess(false)}
+              className="text-white/70 hover:text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+      
       <div className="bg-[#05050a] border border-cyan-900/50 w-full max-w-6xl h-[90vh] rounded-2xl shadow-[0_0_50px_rgba(0,243,255,0.1)] flex flex-col overflow-hidden relative">
         
         {/* Decorative Lines */}

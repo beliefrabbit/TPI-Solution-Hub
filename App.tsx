@@ -83,7 +83,7 @@ const App: React.FC = () => {
     <div className="min-h-screen font-sans selection:bg-cyan-500/30 selection:text-white pb-10">
       
       {/* Top Navigation / Branding */}
-      <nav className="fixed top-0 left-0 w-full z-50 flex justify-end items-center px-6 py-4 pointer-events-none mix-blend-difference">
+      <nav className="fixed top-0 left-0 w-full z-40 flex justify-end items-center px-6 py-4 pointer-events-none mix-blend-difference">
         <div className="pointer-events-auto">
           <button 
             onClick={() => setIsAdminOpen(true)}
@@ -101,7 +101,7 @@ const App: React.FC = () => {
         <ParticleHero />
         
         {/* Statistics Ticker (Positioned below SYSTEM ONLINE) */}
-        <div className="relative z-30 -mt-48 mb-12 container mx-auto px-4 max-w-5xl">
+        <div className="relative z-20 -mt-48 mb-12 container mx-auto px-4 max-w-5xl">
           <div className="glass-panel rounded-full p-4 md:p-6 flex flex-wrap justify-around items-center gap-6 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
           <div className="text-center group cursor-pointer flex-1" onClick={() => setShowStatsModal('cases')}>
             <div className="text-3xl md:text-4xl font-mono font-bold text-white mb-1 group-hover:text-cyan-400 transition-colors drop-shadow-lg">
@@ -144,7 +144,7 @@ const App: React.FC = () => {
 
       {/* Stats Detail Modal */}
       {showStatsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 animate-in fade-in duration-200">
           {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-black/90 backdrop-blur-xl"

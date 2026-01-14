@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TPI Solution Hub - 測試數據生成器</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #05050a;
+            color: #fff;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #06b6d4;
+            border-bottom: 2px solid #06b6d4;
+            padding-bottom: 10px;
+        }
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        button {
+            background: #06b6d4;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0891b2;
+        }
+        .success {
+            background: #10b981;
+        }
+        .warning {
+            background: #f59e0b;
+        }
+        .danger {
+            background: #ef4444;
+        }
+        pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .info {
+            background: rgba(6, 182, 212, 0.1);
+            border-left: 4px solid #06b6d4;
+            padding: 15px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 TPI Solution Hub - 測試數據生成器</h1>
+    
+    <div class="info">
+        <strong>使用說明：</strong>
+        <ol>
+            <li>選擇要生成的測試數據類型</li>
+            <li>點擊對應的生成按鈕</li>
+            <li>數據會自動寫入 localStorage</li>
+            <li>重新整理 TPI Solution Hub 頁面即可看到測試數據</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h2>📊 基礎測試數據</h2>
+        <button onclick="generateBasicData()">生成基礎測試數據（12個案例）</button>
+        <button onclick="generateNoImageCases()">生成無圖片測試案例（3個）</button>
+        <button onclick="generateMinimalCases()">生成最少資料案例（3個）</button>
+    </div>
+
+    <div class="section">
+        <h2>🔍 搜尋與篩選測試</h2>
+        <button onclick="generateSearchTestData()">生成搜尋測試數據（10個案例）</button>
+        <button onclick="generateTagTestData()">生成標籤測試數據（涵蓋所有標籤）</button>
+    </div>
+
+    <div class="section">
+        <h2>📄 分頁測試</h2>
+        <button onclick="generatePaginationData()">生成分頁測試數據（25個案例）</button>
+        <button onclick="generateLargeDataset()">生成大量數據（100個案例）</button>
+    </div>
+
+    <div class="section">
+        <h2>🎨 邊界測試</h2>
+        <button onclick="generateEdgeCases()">生成邊界測試案例</button>
+        <button onclick="generateSpecialChars()">生成特殊字元測試案例</button>
+    </div>
+
+    <div class="section">
+        <h2>🛠️ 工具</h2>
+        <button onclick="clearAllData()" class="danger">清除所有數據</button>
+        <button onclick="exportData()" class="success">匯出當前數據（JSON）</button>
+        <button onclick="showCurrentData()">顯示當前數據統計</button>
+    </div>
+
+    <div class="section">
+        <h2>📋 執行結果</h2>
+        <pre id="result">等待執行...</pre>
+    </div>
+
+    <script>
+        const tagIds = {
+            industry: ['t1', 't2', 't3', 't4', 't5'],
+            business: ['t6', 't7', 't8', 't10', 't11', 't12', 't13', 't20', 't21'],
+            trend: ['t14', 't15', 't16', 't17', 't18', 't19', 't22', 't9']
+        };
+
+        function getStorage() {
+            const stored = localStorage.getItem('tpi-solution-hub-state');
+            return stored ? JSON.parse(stored) : { cases: [], tags: [], techDomains: [] };
+        }
+
+        function saveStorage(state) {
+            localStorage.setItem('tpi-solution-hub-state', JSON.stringify(state));
+        }
+
+        function log(message) {
+            const result = document.getElementById('result');
+            result.textContent = message;
+            console.log(message);
+        }
+
+        function generateBasicData() {
+            const state = getStorage();
+            const cases = [
+                {
+                    id: `test-basic-${Date.now()}-1`,
+                    title: '測試案例 - 完整資料 A',
+                    description: '這是一個包含所有欄位的完整測試案例，用於測試基本功能。',
+                    highlights: '亮點：採用最新 AI 技術，提升效率 300%',
+                    features: '建置功能：LLM+專案人力20天',
+                    client: '測試客戶 A',
+                    launchDate: '2026-01-15',
+                    imageUrl: 'https://picsum.photos/id/1015/800/600',
+                    solutionDescription: '詳細的解決方案說明：採用微服務架構，整合多個數據源，運用深度學習模型進行即時分析。',
+                    solutionImageUrl: 'https://picsum.photos/id/1018/800/600',
+                    tagIds: ['t1', 't7', 't14'],
+                    dateAdded: Date.now()
+                },
+                {
+                    id: `test-basic-${Date.now()}-2`,
+                    title: '測試案例 - 完整資料 B',
+                    description: '另一個完整資料的測試案例，用於驗證多案例顯示。',
+                    highlights: '亮點：創新解決方案，客戶滿意度 95%',
+                    features: '建置功能：React+Node.js+專案人力15天',
+                    client: '測試客戶 B',
+                    launchDate: '2026-01-20',
+                    imageUrl: 'https://picsum.photos/id/1025/800/600',
+                    solutionDescription: '採用現代化技術棧，提供完整的 API 管理與監控功能。',
+                    solutionImageUrl: 'https://picsum.photos/id/1028/800/600',
+                    tagIds: ['t2', 't10', 't15'],
+                    dateAdded: Date.now() - 1000
+                }
+            ];
+            state.cases.push(...cases);
+            saveStorage(state);
+            log(`✅ 已生成 ${cases.length} 個基礎測試案例\n總案例數：${state.cases.length}`);
+        }
+
+        function generateNoImageCases() {
+            const state = getStorage();
+            const cases = [
+                {
+                    id: `test-noimg-${Date.now()}-1`,
+                    title: '測試案例 - 無封面圖片',
+                    description: '這個案例沒有封面圖片，應該顯示數位顆粒問號。',
+                    highlights: '亮點：測試無圖片顯示功能',
+                    tagIds: ['t1', 't14'],
+                    dateAdded: Date.now()
+                },
+                {
+                    id: `test-noimg-${Date.now()}-2`,
+                    title: '測試案例 - 無解決方案圖片',
+                    description: '這個案例有解決方案說明但沒有圖片。',
+                    solutionDescription: '詳細的解決方案說明，但沒有對應的圖片。',
+                    tagIds: ['t2', 't16'],
+                    dateAdded: Date.now() - 1000
+                },
+                {
+                    id: `test-noimg-${Date.now()}-3`,
+                    title: '測試案例 - 完全無圖片',
+                    description: '這個案例完全沒有圖片，測試問號顯示。',
+                    tagIds: ['t3', 't17'],
+                    dateAdded: Date.now() - 2000
+                }
+            ];
+            state.cases.push(...cases);
+            saveStorage(state);
+            log(`✅ 已生成 ${cases.length} 個無圖片測試案例\n總案例數：${state.cases.length}`);
+        }
+
+        function generateMinimalCases() {
+            const state = getStorage();
+            const cases = [
+                {
+                    id: `test-min-${Date.now()}-1`,
+                    title: '測試案例 - 最少資料 A',
+                    description: '只填寫必填欄位的測試案例。',
+                    tagIds: [],
+                    dateAdded: Date.now()
+                },
+                {
+                    id: `test-min-${Date.now()}-2`,
+                    title: '測試案例 - 最少資料 B',
+                    description: '另一個最少資料的測試案例。',
+                    tagIds: ['t1'],
+                    dateAdded: Date.now() - 1000
+                }
+            ];
+            state.cases.push(...cases);
+            saveStorage(state);
+            log(`✅ 已生成 ${cases.length} 個最少資料測試案例\n總案例數：${state.cases.length}`);
+        }
+
+        function generateSearchTestData() {
+            const state = getStorage();
+            const keywords = ['AI', '金融', '醫療', 'ESG', '資安', '製造', '政府', '零售', '創新', '數位'];
+            const cases = keywords.map((keyword, idx) => ({
+                id: `test-search-${Date.now()}-${idx}`,
+                title: `測試案例 - ${keyword}相關`,
+                description: `這個案例包含關鍵字「${keyword}」，用於測試搜尋功能。`,
+                highlights: `亮點：${keyword}技術應用`,
+                tagIds: [tagIds.industry[idx % tagIds.industry.length], tagIds.trend[idx % tagIds.trend.length]],
+                dateAdded: Date.now() - idx * 1000
+            }));
+            state.cases.push(...cases);
+            saveStorage(state);
+            log(`✅ 已生成 ${cases.length} 個搜尋測試案例\n總案例數：${state.cases.length}`);
+        }
+
+        function generateTagTestData() {
+            const state = getStorage();
+            const allTags = [...tagIds.industry, ...tagIds.business, ...tagIds.trend];
+            const cases = allTags.map((tagId, idx) => ({
+                id: `test-tag-${Date.now()}-${idx}`,
+                title: `測試案例 - 標籤 ${tagId}`,
+                description: `這個案例用於測試標籤 ${tagId} 的篩選功能。`,
+                tagIds: [tagId],
+                dateAdded: Date.now() - idx * 1000
+            }));
+            state.cases.push(...cases);
+            saveStorage(state);
+            log(`✅ 已生成 ${cases.length} 個標籤測試案例\n總案例數：${state.cases.length}`);
+        }
+
+        function generatePaginationData() {
+            const state = getStorage();
+            const cases = Array.from({ length: 25 }, (_, idx) => ({
+                id: `test-page-${Date.now()}-${idx}`,
+                title: `測試案例 - 分頁 ${idx + 1}`,
+                description: `這是第 ${idx + 1} 個測試案例，用於測試分頁功能。`,
+                tagIds: [
+                    tagIds.industry[idx % tagIds.industry.length],
+                    tagIds.trend[idx % tagIds.trend.length]
+                ],
+                dateAdded: Date.now() - idx * 1000
+            }));
+            state.cases.push(...cases);
+            saveStorage(state);
+            log(`✅ 已生成 ${cases.length} 個分頁測試案例\n總案例數：${state.cases.length}`);
+        }
+
+        function generateLargeDataset() {
+            const state = getStorage();
+            const cases = Array.from({ length: 100 }, (_, idx) => ({
+                id: `test-large-${Date.now()}-${idx}`,
+                title: `大量數據測試案例 ${idx + 1}`,
+                description: `這是第 ${idx + 1} 個大量數據測試案例，用於測試系統效能。`,
+                highlights: `亮點 ${idx + 1}`,
+                features: `功能 ${idx + 1}`,
+                tagIds: [
+                    tagIds.industry[idx % tagIds.industry.length],
+                    tagIds.business[idx % tagIds.business.length],
+                    tagIds.trend[idx % tagIds.trend.length]
+                ],
+                dateAdded: Date.now() - idx * 1000
+            }));
+            state.cases.push(...cases);
+            saveStorage(state);
+            log(`✅ 已生成 ${cases.length} 個大量數據測試案例\n總案例數：${state.cases.length}\n⚠️ 注意：大量數據可能影響效能`);
+        }
+
+        function generateEdgeCases() {
+            const state = getStorage();
+            const cases = [
+                {
+                    id: `test-edge-${Date.now()}-1`,
+                    title: 'A'.repeat(100),
+                    description: 'B'.repeat(500),
+                    highlights: 'C'.repeat(200),
+                    tagIds: ['t1'],
+                    dateAdded: Date.now()
+                },
+                {
+                    id: `test-edge-${Date.now()}-2`,
+                    title: '測試案例 - 空字串欄位',
+                    description: '正常描述',
+                    highlights: '',
+                    features: '',
+                    tagIds: [],
+                    dateAdded: Date.now() - 1000
+                }
+            ];
+            state.cases.push(...cases);
+            saveStorage(state);
+            log(`✅ 已生成 ${cases.length} 個邊界測試案例\n總案例數：${state.cases.length}`);
+        }
+
+        function generateSpecialChars() {
+            const state = getStorage();
+            const cases = [
+                {
+                    id: `test-special-${Date.now()}-1`,
+                    title: '測試案例 - 特殊字元 !@#$%^&*()',
+                    description: '包含特殊字元的描述：!@#$%^&*()_+-=[]{}|;:,.<>?',
+                    tagIds: ['t1'],
+                    dateAdded: Date.now()
+                },
+                {
+                    id: `test-special-${Date.now()}-2`,
+                    title: '測試案例 - 中文標點，。！？；：',
+                    description: '包含中文標點符號的描述，測試顯示效果。',
+                    tagIds: ['t2'],
+                    dateAdded: Date.now() - 1000
+                }
+            ];
+            state.cases.push(...cases);
+            saveStorage(state);
+            log(`✅ 已生成 ${cases.length} 個特殊字元測試案例\n總案例數：${state.cases.length}`);
+        }
+
+        function clearAllData() {
+            if (confirm('確定要清除所有數據嗎？此操作無法復原！')) {
+                localStorage.removeItem('tpi-solution-hub-state');
+                log('✅ 已清除所有數據');
+            }
+        }
+
+        function exportData() {
+            const state = getStorage();
+            const dataStr = JSON.stringify(state, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `tpi-test-data-${Date.now()}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            log('✅ 數據已匯出為 JSON 檔案');
+        }
+
+        function showCurrentData() {
+            const state = getStorage();
+            const stats = {
+                總案例數: state.cases.length,
+                總標籤數: state.tags.length,
+                技術領域數: state.techDomains.length,
+                有圖片案例: state.cases.filter(c => c.imageUrl).length,
+                無圖片案例: state.cases.filter(c => !c.imageUrl).length,
+                有亮點案例: state.cases.filter(c => c.highlights).length,
+                有解決方案案例: state.cases.filter(c => c.solutionDescription).length
+            };
+            log(`📊 當前數據統計：\n${JSON.stringify(stats, null, 2)}`);
+        }
+
+        // 初始化顯示
+        showCurrentData();
+    </script>
+</body>
+</html>

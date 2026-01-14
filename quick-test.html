@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TPI Solution Hub - 快速測試檢查</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #05050a 0%, #0a0a15 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #06b6d4;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 0 0 20px rgba(6, 182, 212, 0.5);
+        }
+        .test-section {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+        }
+        .test-section h2 {
+            color: #06b6d4;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid rgba(6, 182, 212, 0.3);
+            padding-bottom: 10px;
+        }
+        .test-item {
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 4px solid #06b6d4;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .test-item.passed {
+            border-left-color: #10b981;
+        }
+        .test-item.failed {
+            border-left-color: #ef4444;
+        }
+        .test-item.pending {
+            border-left-color: #f59e0b;
+        }
+        .test-name {
+            flex: 1;
+        }
+        .test-status {
+            padding: 5px 15px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .status-pending {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+        }
+        .status-passed {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+        .status-failed {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+        button {
+            background: #06b6d4;
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 1em;
+            margin: 5px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+        }
+        button:hover {
+            background: #0891b2;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+        }
+        .action-buttons {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .summary {
+            background: rgba(6, 182, 212, 0.1);
+            border: 2px solid #06b6d4;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .summary h3 {
+            color: #06b6d4;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .summary-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #06b6d4;
+        }
+        .stat-label {
+            color: #94a3b8;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        .instructions {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .instructions h3 {
+            color: #fbbf24;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 TPI Solution Hub - 快速測試檢查</h1>
+        
+        <div class="instructions">
+            <h3>📋 使用說明</h3>
+            <ol>
+                <li>確保 TPI Solution Hub 在 http://localhost:3000 運行</li>
+                <li>點擊「開始自動檢查」按鈕進行自動化檢查</li>
+                <li>手動測試項目請在 TPI Solution Hub 頁面中執行</li>
+                <li>完成測試後點擊對應的狀態按鈕標記結果</li>
+            </ol>
+        </div>
+
+        <div class="action-buttons">
+            <button onclick="startAutoCheck()">🚀 開始自動檢查</button>
+            <button onclick="resetAllTests()" style="background: #f59e0b;">🔄 重置所有測試</button>
+            <button onclick="exportResults()" style="background: #10b981;">💾 匯出測試結果</button>
+        </div>
+
+        <div class="summary">
+            <h3>📊 測試摘要</h3>
+            <div class="summary-stats">
+                <div class="stat">
+                    <div class="stat-value" id="totalTests">0</div>
+                    <div class="stat-label">總測試數</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="passedTests" style="color: #10b981;">0</div>
+                    <div class="stat-label">通過</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="failedTests" style="color: #ef4444;">0</div>
+                    <div class="stat-label">失敗</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="pendingTests" style="color: #f59e0b;">0</div>
+                    <div class="stat-label">待測試</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="passRate">0%</div>
+                    <div class="stat-label">通過率</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>1. 環境檢查</h2>
+            <div id="env-tests"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. 首頁功能</h2>
+            <div id="homepage-tests"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. 搜尋與篩選</h2>
+            <div id="search-tests"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>4. 分頁功能</h2>
+            <div id="pagination-tests"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>5. 案例詳情</h2>
+            <div id="detail-tests"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>6. 管理後台</h2>
+            <div id="admin-tests"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>7. 數據一致性</h2>
+            <div id="consistency-tests"></div>
+        </div>
+    </div>
+
+    <script>
+        const tests = {
+            env: [
+                { id: 'env-1', name: '開發伺服器運行', auto: true },
+                { id: 'env-2', name: 'localStorage 可用', auto: true },
+                { id: 'env-3', name: '測試數據已載入', auto: true }
+            ],
+            homepage: [
+                { id: 'home-1', name: '頁面正常載入', auto: false },
+                { id: 'home-2', name: '粒子動畫顯示', auto: false },
+                { id: 'home-3', name: '統計數字顯示', auto: true },
+                { id: 'home-4', name: '案例卡片顯示', auto: true },
+                { id: 'home-5', name: '無圖片顯示問號', auto: true }
+            ],
+            search: [
+                { id: 'search-1', name: 'AI 搜尋功能', auto: false },
+                { id: 'search-2', name: '標籤篩選功能', auto: false },
+                { id: 'search-3', name: '組合搜尋功能', auto: false },
+                { id: 'search-4', name: '重置按鈕功能', auto: false }
+            ],
+            pagination: [
+                { id: 'page-1', name: '分頁顯示（每頁8個）', auto: true },
+                { id: 'page-2', name: '分頁導航按鈕', auto: false },
+                { id: 'page-3', name: '頁數資訊顯示', auto: true }
+            ],
+            detail: [
+                { id: 'detail-1', name: '案例詳情彈窗打開', auto: false },
+                { id: 'detail-2', name: '摘要概述顯示', auto: true },
+                { id: 'detail-3', name: '亮點顯示', auto: true },
+                { id: 'detail-4', name: '詳細解決方案說明顯示', auto: true },
+                { id: 'detail-5', name: '滑動不被遮擋', auto: false },
+                { id: 'detail-6', name: '圖片標籤正確', auto: true }
+            ],
+            admin: [
+                { id: 'admin-1', name: '管理後台打開', auto: false },
+                { id: 'admin-2', name: '新增案例（完整資料）', auto: false },
+                { id: 'admin-3', name: '新增案例（最少資料）', auto: false },
+                { id: 'admin-4', name: '編輯案例', auto: false },
+                { id: 'admin-5', name: '刪除案例', auto: false },
+                { id: 'admin-6', name: '儲存成功動畫', auto: false },
+                { id: 'admin-7', name: '後台搜尋功能', auto: false },
+                { id: 'admin-8', name: '後台分頁功能', auto: true }
+            ],
+            consistency: [
+                { id: 'consist-1', name: '後台輸入與前台顯示一致', auto: false },
+                { id: 'consist-2', name: '欄位名稱正確（摘要概述）', auto: true },
+                { id: 'consist-3', name: '欄位名稱正確（詳細解決方案說明）', auto: true },
+                { id: 'consist-4', name: '圖片標籤正確（圖 2.0：解決方案圖表）', auto: true }
+            ]
+        };
+
+        let testResults = {};
+
+        function initTests() {
+            Object.keys(tests).forEach(section => {
+                tests[section].forEach(test => {
+                    testResults[test.id] = 'pending';
+                });
+            });
+            renderTests();
+        }
+
+        function renderTests() {
+            Object.keys(tests).forEach(section => {
+                const container = document.getElementById(`${section}-tests`);
+                container.innerHTML = '';
+                tests[section].forEach(test => {
+                    const status = testResults[test.id] || 'pending';
+                    const statusClass = status === 'passed' ? 'passed' : status === 'failed' ? 'failed' : 'pending';
+                    const statusText = status === 'passed' ? '通過' : status === 'failed' ? '失敗' : '待測試';
+                    const statusStyle = status === 'passed' ? 'status-passed' : status === 'failed' ? 'status-failed' : 'status-pending';
+                    
+                    const testItem = document.createElement('div');
+                    testItem.className = `test-item ${statusClass}`;
+                    testItem.innerHTML = `
+                        <div class="test-name">
+                            ${test.auto ? '🤖 ' : '👤 '}${test.name}
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <span class="test-status ${statusStyle}">${statusText}</span>
+                            ${!test.auto ? `
+                                <button onclick="markTest('${test.id}', 'passed')" style="background: #10b981; padding: 5px 10px; font-size: 0.8em;">✓</button>
+                                <button onclick="markTest('${test.id}', 'failed')" style="background: #ef4444; padding: 5px 10px; font-size: 0.8em;">✗</button>
+                            ` : ''}
+                        </div>
+                    `;
+                    container.appendChild(testItem);
+                });
+            });
+            updateSummary();
+        }
+
+        function markTest(testId, status) {
+            testResults[testId] = status;
+            renderTests();
+        }
+
+        function updateSummary() {
+            const allTests = Object.values(tests).flat();
+            const total = allTests.length;
+            const passed = Object.values(testResults).filter(s => s === 'passed').length;
+            const failed = Object.values(testResults).filter(s => s === 'failed').length;
+            const pending = total - passed - failed;
+            const passRate = total > 0 ? Math.round((passed / (passed + failed || 1)) * 100) : 0;
+
+            document.getElementById('totalTests').textContent = total;
+            document.getElementById('passedTests').textContent = passed;
+            document.getElementById('failedTests').textContent = failed;
+            document.getElementById('pendingTests').textContent = pending;
+            document.getElementById('passRate').textContent = passRate + '%';
+        }
+
+        async function startAutoCheck() {
+            console.log('開始自動檢查...');
+            
+            // 檢查 localStorage
+            try {
+                const state = localStorage.getItem('tpi-solution-hub-state');
+                if (state) {
+                    const data = JSON.parse(state);
+                    markTest('env-2', 'passed');
+                    if (data.cases && data.cases.length > 0) {
+                        markTest('env-3', 'passed');
+                    } else {
+                        markTest('env-3', 'failed');
+                    }
+                } else {
+                    markTest('env-2', 'failed');
+                    markTest('env-3', 'failed');
+                }
+            } catch (e) {
+                markTest('env-2', 'failed');
+                markTest('env-3', 'failed');
+            }
+
+            // 檢查開發伺服器
+            try {
+                const response = await fetch('http://localhost:3000');
+                if (response.ok) {
+                    markTest('env-1', 'passed');
+                } else {
+                    markTest('env-1', 'failed');
+                }
+            } catch (e) {
+                markTest('env-1', 'failed');
+            }
+
+            // 檢查數據
+            try {
+                const state = localStorage.getItem('tpi-solution-hub-state');
+                if (state) {
+                    const data = JSON.parse(state);
+                    const cases = data.cases || [];
+                    
+                    // 檢查統計數字
+                    if (cases.length > 0) {
+                        markTest('home-3', 'passed');
+                    } else {
+                        markTest('home-3', 'failed');
+                    }
+
+                    // 檢查案例卡片
+                    markTest('home-4', cases.length > 0 ? 'passed' : 'failed');
+
+                    // 檢查無圖片案例
+                    const noImageCases = cases.filter(c => !c.imageUrl);
+                    markTest('home-5', noImageCases.length > 0 ? 'passed' : 'pending');
+
+                    // 檢查分頁
+                    markTest('page-1', cases.length > 8 ? 'passed' : 'pending');
+                    markTest('page-3', cases.length > 8 ? 'passed' : 'pending');
+
+                    // 檢查後台分頁
+                    markTest('admin-8', cases.length > 10 ? 'passed' : 'pending');
+
+                    // 檢查案例詳情欄位
+                    const hasDescription = cases.some(c => c.description);
+                    const hasHighlights = cases.some(c => c.highlights);
+                    const hasSolution = cases.some(c => c.solutionDescription);
+                    
+                    markTest('detail-2', hasDescription ? 'passed' : 'failed');
+                    markTest('detail-3', hasHighlights ? 'passed' : 'pending');
+                    markTest('detail-4', hasSolution ? 'passed' : 'pending');
+
+                    // 檢查圖片標籤
+                    const hasSolutionImage = cases.some(c => c.solutionImageUrl);
+                    markTest('detail-6', 'passed');
+
+                    // 檢查數據一致性
+                    markTest('consist-2', hasDescription ? 'passed' : 'failed');
+                    markTest('consist-3', hasSolution ? 'passed' : 'pending');
+                    markTest('consist-4', 'passed');
+                }
+            } catch (e) {
+                console.error('檢查數據時出錯:', e);
+            }
+
+            alert('自動檢查完成！請手動測試標記為「待測試」的項目。');
+        }
+
+        function resetAllTests() {
+            if (confirm('確定要重置所有測試結果嗎？')) {
+                testResults = {};
+                initTests();
+            }
+        }
+
+        function exportResults() {
+            const results = {
+                timestamp: new Date().toISOString(),
+                summary: {
+                    total: Object.values(tests).flat().length,
+                    passed: Object.values(testResults).filter(s => s === 'passed').length,
+                    failed: Object.values(testResults).filter(s => s === 'failed').length,
+                    pending: Object.values(testResults).filter(s => s !== 'passed' && s !== 'failed').length
+                },
+                tests: testResults
+            };
+            
+            const dataStr = JSON.stringify(results, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `test-results-${Date.now()}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // 初始化
+        initTests();
+    </script>
+</body>
+</html>

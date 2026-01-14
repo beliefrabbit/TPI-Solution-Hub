@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { CaseStudy, Tag, CategoryType } from '../types';
 import { ArrowUpRight, X, Layers, Database, Mic, Search, Sparkles, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import ParticleQuestionMark from './ParticleQuestionMark';
 
 interface ShowcaseProps {
   cases: CaseStudy[];
@@ -14,6 +15,26 @@ interface ShowcaseProps {
 const Showcase: React.FC<ShowcaseProps> = ({ cases, tags }) => {
   
   const [selectedCase, setSelectedCase] = useState<CaseStudy | null>(null);
+
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedCase) {
+        setSelectedCase(null);
+      }
+    };
+    
+    if (selectedCase) {
+      document.addEventListener('keydown', handleEscape);
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [selectedCase]);
   
   // New Filter State
   const [aiQuery, setAiQuery] = useState('');
@@ -243,13 +264,17 @@ const Showcase: React.FC<ShowcaseProps> = ({ cases, tags }) => {
               style={{ animationDelay: `${idx * 50}ms` }}
             >
               {/* Image Container */}
-              <div className="relative h-56 overflow-hidden">
+              <div className="relative h-56 overflow-hidden bg-[#05050a]">
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a12] via-transparent to-transparent z-10 opacity-80"></div>
-                <img 
-                  src={item.imageUrl} 
-                  alt={item.title} 
-                  className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700 grayscale group-hover:grayscale-0"
-                />
+                {item.imageUrl ? (
+                  <img 
+                    src={item.imageUrl} 
+                    alt={item.title} 
+                    className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700 grayscale group-hover:grayscale-0"
+                  />
+                ) : (
+                  <ParticleQuestionMark width={400} height={224} className="w-full h-full" />
+                )}
                 <div className="absolute top-0 right-0 p-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                    <div className="bg-cyan-500 text-black px-3 py-1 font-mono text-xs font-bold rounded-sm shadow-[0_0_10px_rgba(6,182,212,0.8)]">
                       存取
@@ -375,7 +400,7 @@ const Showcase: React.FC<ShowcaseProps> = ({ cases, tags }) => {
 
       {/* DETAIL MODAL (Level 2) */}
       {selectedCase && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 animate-in fade-in duration-200">
+        <div className="fixed inset-0 flex items-center justify-center p-4 md:p-8 animate-in fade-in duration-200" style={{ zIndex: 1000 }}>
           {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-black/90 backdrop-blur-xl"
@@ -383,35 +408,54 @@ const Showcase: React.FC<ShowcaseProps> = ({ cases, tags }) => {
           ></div>
           
           {/* Modal Content */}
-          <div className="relative w-full max-w-6xl max-h-[90vh] bg-[#05050a] border border-cyan-500/20 rounded-3xl shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col md:flex-row">
+          <div className="relative w-full max-w-6xl max-h-[90vh] bg-[#05050a] border border-cyan-500/20 rounded-3xl shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col md:flex-row" style={{ zIndex: 1001 }}>
             
             {/* Close Button */}
             <button 
               onClick={() => setSelectedCase(null)}
-              className="absolute top-4 right-4 z-50 p-2 bg-black/50 hover:bg-white/10 text-white rounded-full backdrop-blur-md transition-colors border border-white/10"
+              className="absolute top-4 right-4 z-[1003] p-2 bg-black/70 hover:bg-red-500/20 text-white rounded-full backdrop-blur-md transition-all border-2 border-white/20 hover:border-red-400/50 shadow-[0_0_20px_rgba(0,0,0,0.5)] hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] group"
+              title="關閉 (ESC)"
             >
-              <X size={24} />
+              <X size={19} className="group-hover:rotate-90 transition-transform duration-300" />
             </button>
 
             {/* Left Side: Images */}
             <div className="w-full md:w-1/2 h-[40vh] md:h-auto overflow-y-auto bg-black relative">
-               <div className="sticky top-0 z-10 p-2 pointer-events-none">
-                 <span className="bg-black/70 backdrop-blur text-white text-xs px-2 py-1 font-mono border border-white/10">圖 1.0：概覽</span>
-               </div>
-               <img src={selectedCase.imageUrl} className="w-full object-cover mb-1 opacity-90" alt="Main" />
-               
-               {selectedCase.solutionImageUrl && (
+               {selectedCase.imageUrl ? (
                  <>
-                  <div className="sticky top-0 z-10 p-2 pointer-events-none mt-4">
-                    <span className="bg-cyan-900/70 backdrop-blur text-cyan-100 text-xs px-2 py-1 font-mono border border-cyan-500/30">圖 2.0：解決方案架構</span>
+                   <div className="sticky top-0 z-[110] p-2 pointer-events-none">
+                     <span className="bg-black/70 backdrop-blur text-white text-xs px-2 py-1 font-mono border border-white/10">圖 1.0：概覽</span>
+                   </div>
+                   <img src={selectedCase.imageUrl} className="w-full object-cover mb-1 opacity-90" alt="Main" />
+                 </>
+               ) : (
+                 <div className="relative w-full h-[40vh] md:h-[50vh]">
+                   <div className="sticky top-0 z-[110] p-2 pointer-events-none">
+                     <span className="bg-black/70 backdrop-blur text-white text-xs px-2 py-1 font-mono border border-white/10">圖 1.0：概覽</span>
+                   </div>
+                   <ParticleQuestionMark width={800} height={400} className="w-full h-full" />
+                 </div>
+               )}
+               
+               {selectedCase.solutionImageUrl ? (
+                 <>
+                  <div className="sticky top-0 z-[110] p-2 pointer-events-none mt-4">
+                    <span className="bg-cyan-900/70 backdrop-blur text-cyan-100 text-xs px-2 py-1 font-mono border border-cyan-500/30">圖 2.0：解決方案圖表</span>
                   </div>
                   <img src={selectedCase.solutionImageUrl} className="w-full object-cover border-t border-cyan-500/20" alt="Solution" />
                  </>
+               ) : selectedCase.solutionDescription && (
+                 <div className="relative w-full h-[40vh] md:h-[50vh] mt-4">
+                   <div className="sticky top-0 z-[110] p-2 pointer-events-none">
+                     <span className="bg-cyan-900/70 backdrop-blur text-cyan-100 text-xs px-2 py-1 font-mono border border-cyan-500/30">圖 2.0：解決方案圖表</span>
+                   </div>
+                   <ParticleQuestionMark width={800} height={400} className="w-full h-full" />
+                 </div>
                )}
             </div>
 
             {/* Right Side: Information */}
-            <div className="w-full md:w-1/2 overflow-y-auto p-8 md:p-12 bg-gradient-to-br from-[#0a0a15] to-[#020204]">
+            <div className="w-full md:w-1/2 overflow-y-auto p-8 md:p-12 bg-gradient-to-br from-[#0a0a15] to-[#020204] relative" style={{ zIndex: 1002, position: 'relative' }}>
               
               {/* Header */}
               <div className="mb-8">
@@ -422,27 +466,39 @@ const Showcase: React.FC<ShowcaseProps> = ({ cases, tags }) => {
                     </span>
                   ))}
                 </div>
-                <h2 className="text-3xl md:text-5xl font-bold text-white font-mono leading-tight mb-2">
+                <h2 className="text-2xl md:text-4xl font-bold text-white font-mono leading-tight mb-2">
                   {selectedCase.title}
                 </h2>
                 <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-full"></div>
               </div>
 
-              {/* Layer 1: Challenge/Overview */}
+              {/* Layer 1: Summary/Overview */}
               <div className="mb-10 animate-in slide-in-from-bottom-4 duration-500 delay-100">
                 <h3 className="text-sm font-bold text-slate-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                  <Layers size={16} /> 案例概覽
+                  <Layers size={16} /> 摘要概述
                 </h3>
                 <p className="text-lg text-slate-300 leading-relaxed font-light border-l-2 border-slate-700 pl-6">
                   {selectedCase.description}
                 </p>
               </div>
 
+              {/* Highlights */}
+              {selectedCase.highlights && (
+                <div className="mb-10 animate-in slide-in-from-bottom-4 duration-500 delay-150">
+                  <h3 className="text-sm font-bold text-yellow-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                    <Layers size={16} /> 亮點
+                  </h3>
+                  <p className="text-lg text-slate-300 leading-relaxed font-light border-l-2 border-yellow-500/30 pl-6">
+                    {selectedCase.highlights}
+                  </p>
+                </div>
+              )}
+
               {/* Layer 2: Solution Details */}
               {(selectedCase.solutionDescription || selectedCase.solutionImageUrl) && (
                 <div className="p-6 bg-cyan-900/10 border border-cyan-500/10 rounded-xl animate-in slide-in-from-bottom-4 duration-500 delay-200">
                   <h3 className="text-sm font-bold text-cyan-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                    <Database size={16} /> 解決方案架構
+                    <Database size={16} /> 詳細解決方案說明
                   </h3>
                   <p className="text-slate-300 leading-relaxed font-mono text-sm">
                     {selectedCase.solutionDescription || "此記錄的技術解決方案詳情尚未解密。"}
