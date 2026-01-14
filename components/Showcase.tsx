@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { CaseStudy, Tag, CategoryType } from '../types';
-import { ArrowUpRight, X, Layers, Database, Mic, Search, Sparkles } from 'lucide-react';
+import { ArrowUpRight, X, Layers, Database, Mic, Search, Sparkles, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 interface ShowcaseProps {
   cases: CaseStudy[];
@@ -18,6 +18,10 @@ const Showcase: React.FC<ShowcaseProps> = ({ cases, tags }) => {
   // New Filter State
   const [aiQuery, setAiQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const casesPerPage = 8;
 
   // Split tags by category
   const industryTags = useMemo(() => tags.filter(t => t.type === CategoryType.INDUSTRY), [tags]);
@@ -63,6 +67,17 @@ const Showcase: React.FC<ShowcaseProps> = ({ cases, tags }) => {
 
     return result;
   }, [cases, aiQuery, selectedTags]);
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredCases.length / casesPerPage);
+  const startIndex = (currentPage - 1) * casesPerPage;
+  const endIndex = startIndex + casesPerPage;
+  const paginatedCases = filteredCases.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [aiQuery, selectedTags]);
 
   const getTagName = (id: string) => tags.find(t => t.id === id)?.name || id;
 
@@ -219,8 +234,8 @@ const Showcase: React.FC<ShowcaseProps> = ({ cases, tags }) => {
 
       {/* Grid Content */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredCases.length > 0 ? (
-          filteredCases.map((item, idx) => (
+        {paginatedCases.length > 0 ? (
+          paginatedCases.map((item, idx) => (
             <div 
               key={item.id} 
               onClick={() => setSelectedCase(item)}
@@ -274,6 +289,89 @@ const Showcase: React.FC<ShowcaseProps> = ({ cases, tags }) => {
           </div>
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {filteredCases.length > casesPerPage && (
+        <div className="mt-12 flex flex-col items-center gap-4">
+          {/* Page Info */}
+          <div className="text-slate-400 text-sm font-mono">
+            顯示第 {startIndex + 1}-{Math.min(endIndex, filteredCases.length)} 個，共 {filteredCases.length} 個案例
+          </div>
+          
+          {/* Pagination Buttons */}
+          <div className="flex items-center gap-2">
+            {/* First Page */}
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="p-2 bg-black/40 border border-white/10 rounded-lg text-white hover:bg-white/10 hover:border-cyan-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              title="第一頁"
+            >
+              <ChevronsLeft size={20} />
+            </button>
+            
+            {/* Previous Page */}
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="p-2 bg-black/40 border border-white/10 rounded-lg text-white hover:bg-white/10 hover:border-cyan-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              title="上一頁"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            
+            {/* Page Numbers */}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-4 py-2 min-w-[44px] font-mono text-sm rounded-lg transition-all ${
+                      currentPage === pageNum
+                        ? 'bg-cyan-600 text-white border border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.5)]'
+                        : 'bg-black/40 text-slate-300 border border-white/10 hover:bg-white/10 hover:border-cyan-500/50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            
+            {/* Next Page */}
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="p-2 bg-black/40 border border-white/10 rounded-lg text-white hover:bg-white/10 hover:border-cyan-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              title="下一頁"
+            >
+              <ChevronRight size={20} />
+            </button>
+            
+            {/* Last Page */}
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="p-2 bg-black/40 border border-white/10 rounded-lg text-white hover:bg-white/10 hover:border-cyan-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              title="最後一頁"
+            >
+              <ChevronsRight size={20} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* DETAIL MODAL (Level 2) */}
       {selectedCase && (

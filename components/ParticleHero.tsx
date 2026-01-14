@@ -95,6 +95,20 @@ const ParticleHero: React.FC = () => {
             case 3: return '#bc13fe'; // Brain Purple
             case 4: return '#0aff0a'; // Chip Green
             case 5: return '#ffffff'; // Stream White
+            case 6: return '#00ff88'; // Neon Green
+            case 7: return '#ff6b00'; // Orange
+            case 8: return '#00d4ff'; // Sky Blue
+            case 9: return '#ff00ff'; // Magenta
+            case 10: return '#ffff00'; // Yellow
+            case 11: return '#00ffff'; // Cyan
+            case 12: return '#ff0080'; // Pink
+            case 13: return '#80ff00'; // Lime
+            case 14: return '#0080ff'; // Blue
+            case 15: return '#ff8000'; // Amber
+            case 16: return '#8000ff'; // Purple
+            case 17: return '#ff4080'; // Rose
+            case 18: return '#40ff80'; // Mint
+            case 19: return '#4080ff'; // Light Blue
             default: return '#00f3ff';
          }
       })();
@@ -189,6 +203,145 @@ const ParticleHero: React.FC = () => {
                  p.baseY = Math.round(p.baseY / 20) * 20;
              }
              break;
+
+          case 5: // SPIRAL GALAXY
+             const spiralT = (i / PARTICLE_COUNT) * Math.PI * 4;
+             const spiralR = 100 + (i / PARTICLE_COUNT) * 150;
+             p.baseX = spiralR * Math.cos(spiralT);
+             p.baseY = spiralR * Math.sin(spiralT);
+             p.baseZ = (Math.random() - 0.5) * 100;
+             break;
+
+          case 6: // DNA HELIX
+             const helixT = (i / PARTICLE_COUNT) * Math.PI * 4;
+             const helixR = 80;
+             p.baseX = helixR * Math.cos(helixT);
+             p.baseY = (i / PARTICLE_COUNT - 0.5) * 300;
+             p.baseZ = helixR * Math.sin(helixT);
+             break;
+
+          case 7: // CUBE GRID
+             const gridSize = 8;
+             const gridX = (i % gridSize) - gridSize/2;
+             const gridY = Math.floor(i / gridSize) % gridSize - gridSize/2;
+             const gridZ = Math.floor(i / (gridSize * gridSize)) % gridSize - gridSize/2;
+             p.baseX = gridX * 30;
+             p.baseY = gridY * 30;
+             p.baseZ = gridZ * 30;
+             break;
+
+          case 8: // TORUS
+             const torusT = (i / PARTICLE_COUNT) * Math.PI * 2;
+             const torusR = 100;
+             const torusR2 = 40;
+             p.baseX = (torusR + torusR2 * Math.cos(torusT * 3)) * Math.cos(torusT);
+             p.baseY = (torusR + torusR2 * Math.cos(torusT * 3)) * Math.sin(torusT);
+             p.baseZ = torusR2 * Math.sin(torusT * 3);
+             break;
+
+          case 9: // WAVE PATTERN
+             const waveX = ((i / PARTICLE_COUNT) - 0.5) * 400;
+             const waveY = Math.sin((i / PARTICLE_COUNT) * Math.PI * 8) * 80;
+             p.baseX = waveX;
+             p.baseY = waveY;
+             p.baseZ = (Math.random() - 0.5) * 150;
+             break;
+
+          case 10: // OCTAHEDRON
+             phi = Math.acos((Math.random() * 2) - 1);
+             theta = Math.random() * Math.PI * 2;
+             r = 140;
+             let octX = r * Math.sin(phi) * Math.cos(theta);
+             let octY = r * Math.sin(phi) * Math.sin(theta);
+             let octZ = r * Math.cos(phi);
+             // Project to octahedron faces
+             const octMax = Math.max(Math.abs(octX), Math.abs(octY), Math.abs(octZ));
+             const scale = r / octMax;
+             p.baseX = octX * scale;
+             p.baseY = octY * scale;
+             p.baseZ = octZ * scale;
+             break;
+
+          case 11: // NETWORK NODES
+             const nodeCount = Math.floor(Math.sqrt(PARTICLE_COUNT));
+             const nodeX = (i % nodeCount) - nodeCount/2;
+             const nodeY = Math.floor(i / nodeCount) - nodeCount/2;
+             p.baseX = nodeX * 25 + (Math.random() - 0.5) * 20;
+             p.baseY = nodeY * 25 + (Math.random() - 0.5) * 20;
+             p.baseZ = (Math.random() - 0.5) * 100;
+             break;
+
+          case 12: // FLOWER PATTERN
+             const flowerT = (i / PARTICLE_COUNT) * Math.PI * 2;
+             const petals = 6;
+             const flowerR = 100 + Math.sin(flowerT * petals) * 40;
+             p.baseX = flowerR * Math.cos(flowerT);
+             p.baseY = flowerR * Math.sin(flowerT);
+             p.baseZ = (Math.random() - 0.5) * 80;
+             break;
+
+          case 13: // PYRAMID
+             const pyramidLayer = Math.floor(Math.sqrt(i / PARTICLE_COUNT) * 10);
+             const pyramidAngle = (i % (pyramidLayer + 1)) / (pyramidLayer + 1) * Math.PI * 2;
+             const pyramidR = pyramidLayer * 15;
+             p.baseX = pyramidR * Math.cos(pyramidAngle);
+             p.baseY = pyramidR * Math.sin(pyramidAngle);
+             p.baseZ = (pyramidLayer - 5) * 20;
+             break;
+
+          case 14: // RING STRUCTURE
+             const ringT = (i / PARTICLE_COUNT) * Math.PI * 2;
+             const ringR = 120;
+             p.baseX = ringR * Math.cos(ringT);
+             p.baseY = ringR * Math.sin(ringT);
+             p.baseZ = ((i % 3) - 1) * 50;
+             break;
+
+          case 15: // STARS CLUSTER
+             const clusterR = 150 * Math.cbrt(Math.random());
+             phi = Math.random() * Math.PI;
+             theta = Math.random() * Math.PI * 2;
+             p.baseX = clusterR * Math.sin(phi) * Math.cos(theta);
+             p.baseY = clusterR * Math.sin(phi) * Math.sin(theta);
+             p.baseZ = clusterR * Math.cos(phi);
+             break;
+
+          case 16: // LATTICE
+             const latticeSize = 10;
+             const latticeX = (i % latticeSize) - latticeSize/2;
+             const latticeY = Math.floor((i / latticeSize) % latticeSize) - latticeSize/2;
+             const latticeZ = Math.floor(i / (latticeSize * latticeSize)) % latticeSize - latticeSize/2;
+             p.baseX = latticeX * 25;
+             p.baseY = latticeY * 25;
+             p.baseZ = latticeZ * 25;
+             break;
+
+          case 17: // SPHERE SHELLS
+             phi = Math.acos((Math.random() * 2) - 1);
+             theta = Math.random() * Math.PI * 2;
+             const shellLayer = i % 4;
+             r = 100 + shellLayer * 30;
+             p.baseX = r * Math.sin(phi) * Math.cos(theta);
+             p.baseY = r * Math.sin(phi) * Math.sin(theta);
+             p.baseZ = r * Math.cos(phi);
+             break;
+
+          case 18: // INFINITY SYMBOL
+             const infT = (i / PARTICLE_COUNT) * Math.PI * 2;
+             const infR = 60;
+             p.baseX = infR * Math.sin(infT) / (1 + Math.cos(infT) * Math.cos(infT));
+             p.baseY = infR * Math.sin(infT) * Math.cos(infT) / (1 + Math.cos(infT) * Math.cos(infT));
+             p.baseZ = (Math.random() - 0.5) * 60;
+             break;
+
+          case 19: // PARTICLE CLOUD
+             const cloudR = 180 * Math.sqrt(Math.random());
+             phi = Math.random() * Math.PI;
+             theta = Math.random() * Math.PI * 2;
+             p.baseX = cloudR * Math.sin(phi) * Math.cos(theta);
+             p.baseY = cloudR * Math.sin(phi) * Math.sin(theta);
+             p.baseZ = cloudR * Math.cos(phi);
+             break;
         }
       });
     };
@@ -216,7 +369,7 @@ const ParticleHero: React.FC = () => {
       if (lifeCycleTimer > PHASE_DURATION) {
          // Trigger Explosion/Scatter
          lifeCycleTimer = 0;
-         phaseIndex = (phaseIndex + 1) % 5;
+         phaseIndex = (phaseIndex + 1) % 20;
          
          // Add explicit velocity for explosion
          particles.forEach(p => {

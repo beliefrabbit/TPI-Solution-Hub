@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Tag, CaseStudy, CategoryType } from '../types';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Tag, CaseStudy, CategoryType, TechDomain } from '../types';
 import { storageService } from '../services/storage';
-import { Trash2, Plus, Download, X, Edit2, Upload, Save, RotateCcw, FileSpreadsheet, AlertTriangle } from 'lucide-react';
+import { Trash2, Plus, Download, X, Edit2, Upload, Save, RotateCcw, FileSpreadsheet, AlertTriangle, ChevronDown, ChevronUp, Users, Briefcase, Code, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface AdminPanelProps {
@@ -9,24 +9,31 @@ interface AdminPanelProps {
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
-  const [activeTab, setActiveTab] = useState<'cases' | 'tags'>('cases');
+  const [activeTab, setActiveTab] = useState<'cases' | 'tags' | 'stats'>('cases');
   const [cases, setCases] = useState<CaseStudy[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [techDomains, setTechDomains] = useState<TechDomain[]>([]);
   
   // Case Form States
   const [isEditingCase, setIsEditingCase] = useState(false);
   const [editingCaseId, setEditingCaseId] = useState<string | null>(null);
   
   const [caseForm, setCaseForm] = useState({
-    title: '',
-    description: '', // Layer 1
-    imageUrl: '',    // Layer 1
+    title: '',              // 項目名稱
+    description: '',         // 摘要概述 (Layer 1)
+    imageUrl: '',           // Layer 1
     solutionDescription: '', // Layer 2
     solutionImageUrl: '',    // Layer 2
     tagIds: [] as string[],
-    client: '',      // 客戶名稱
-    launchDate: ''   // 案例上線日期
+    client: '',             // 客戶名稱
+    launchDate: '',         // 案例上線日期
+    highlights: '',         // 亮點
+    features: ''            // 建置功能
   });
+  
+  // AI Image Generation states
+  const [isGeneratingCoverImage, setIsGeneratingCoverImage] = useState(false);
+  const [isGeneratingSolutionImage, setIsGeneratingSolutionImage] = useState(false);
   
   // Image upload refs
   const coverImageInputRef = useRef<HTMLInputElement>(null);
@@ -41,6 +48,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [newTagType, setNewTagType] = useState<CategoryType>(CategoryType.INDUSTRY);
+  
+  // Case Search and Pagination States
+  const [caseSearchQuery, setCaseSearchQuery] = useState('');
+  const [currentCasePage, setCurrentCasePage] = useState(1);
+  const casesPerPageAdmin = 10;
+  
+  // Tech Domain Form States
+  const [isAddingTechDomain, setIsAddingTechDomain] = useState(false);
+  const [isEditingTechDomain, setIsEditingTechDomain] = useState(false);
+  const [editingTechDomainId, setEditingTechDomainId] = useState<string | null>(null);
+  const [techDomainForm, setTechDomainForm] = useState({ name: '', count: 0 });
+  const [expandedTechDomains, setExpandedTechDomains] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     refreshData();
@@ -49,7 +68,41 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const refreshData = () => {
     setCases(storageService.getAllCases());
     setTags(storageService.getAllTags());
+    setTechDomains(storageService.getAllTechDomains());
   };
+
+  // Filter and paginate cases for admin panel
+  const filteredAdminCases = useMemo(() => {
+    let result = cases;
+    
+    // Search filter (fuzzy match)
+    if (caseSearchQuery.trim()) {
+      const query = caseSearchQuery.toLowerCase();
+      result = result.filter(c => 
+        c.title.toLowerCase().includes(query) ||
+        c.description.toLowerCase().includes(query) ||
+        (c.client && c.client.toLowerCase().includes(query)) ||
+        (c.highlights && c.highlights.toLowerCase().includes(query)) ||
+        (c.features && c.features.toLowerCase().includes(query)) ||
+        c.tagIds.some(tid => {
+          const tag = tags.find(t => t.id === tid);
+          return tag && tag.name.toLowerCase().includes(query);
+        })
+      );
+    }
+    
+    return result;
+  }, [cases, caseSearchQuery, tags]);
+
+  const adminTotalPages = Math.ceil(filteredAdminCases.length / casesPerPageAdmin);
+  const adminStartIndex = (currentCasePage - 1) * casesPerPageAdmin;
+  const adminEndIndex = adminStartIndex + casesPerPageAdmin;
+  const paginatedAdminCases = filteredAdminCases.slice(adminStartIndex, adminEndIndex);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentCasePage(1);
+  }, [caseSearchQuery]);
 
   const handleEditClick = (c: CaseStudy) => {
     setEditingCaseId(c.id);
@@ -61,7 +114,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       solutionImageUrl: c.solutionImageUrl || '',
       tagIds: c.tagIds,
       client: c.client || '',
-      launchDate: c.launchDate || ''
+      launchDate: c.launchDate || '',
+      highlights: c.highlights || '',
+      features: c.features || ''
     });
     setIsEditingCase(true);
   };
@@ -75,7 +130,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       solutionImageUrl: '',
       tagIds: [],
       client: '',
-      launchDate: ''
+      launchDate: '',
+      highlights: '',
+      features: ''
     });
     setEditingCaseId(null);
     setIsEditingCase(false);
@@ -112,7 +169,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       solutionImageUrl: caseForm.solutionImageUrl,
       tagIds: caseForm.tagIds,
       client: caseForm.client,
-      launchDate: caseForm.launchDate
+      launchDate: caseForm.launchDate,
+      highlights: caseForm.highlights,
+      features: caseForm.features
     };
 
     if (editingCaseId) {
@@ -123,6 +182,117 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     
     resetCaseForm();
     refreshData();
+  };
+  
+  // AI Image Generation using Gemini API
+  const generateImageWithAI = async (type: 'cover' | 'solution') => {
+    const apiKey = import.meta.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      alert('請先設置 GEMINI_API_KEY 環境變數');
+      return;
+    }
+    
+    if (type === 'cover') {
+      setIsGeneratingCoverImage(true);
+    } else {
+      setIsGeneratingSolutionImage(true);
+    }
+    
+    try {
+      // Build prompt based on case information
+      const allTags = storageService.getAllTags();
+      const industryTags = caseForm.tagIds
+        .map(id => allTags.find(t => t.id === id && t.type === CategoryType.INDUSTRY))
+        .filter(Boolean)
+        .map(t => t!.name);
+      
+      const context = `
+項目名稱：${caseForm.title}
+客戶：${caseForm.client || '未指定'}
+產業別：${industryTags.join('、') || '未指定'}
+摘要概述：${caseForm.description}
+亮點：${caseForm.highlights || '未指定'}
+建置功能：${caseForm.features || '未指定'}
+${type === 'solution' ? `解決方案說明：${caseForm.solutionDescription || '未指定'}` : ''}
+      `.trim();
+      
+      const prompt = type === 'cover' 
+        ? `請為以下案例生成一張專業的封面圖片提示詞（prompt），用於 AI 圖片生成服務（如 DALL-E、Midjourney、Stable Diffusion）。圖片應該體現案例的核心價值和技術特色。
+
+要求：
+1. 提示詞必須是英文
+2. 描述要具體、詳細，包含視覺元素、風格、色彩、構圖等
+3. 適合用於專業商業案例展示
+4. 長度約 50-100 字
+
+案例資訊：
+${context}
+
+請只輸出圖片生成提示詞，不要包含其他說明文字。`
+        : `請為以下案例的解決方案架構生成一張專業的技術架構圖提示詞（prompt），用於 AI 圖片生成服務（如 DALL-E、Midjourney、Stable Diffusion）。圖片應該呈現解決方案的技術架構和流程。
+
+要求：
+1. 提示詞必須是英文
+2. 描述要具體、詳細，包含技術元素、架構圖風格、流程方向等
+3. 適合用於專業技術文檔和簡報
+4. 長度約 50-100 字
+
+案例資訊：
+${context}
+
+請只輸出圖片生成提示詞，不要包含其他說明文字。`;
+      
+      // Call Gemini API to generate image prompt
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }]
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || 'API 請求失敗');
+      }
+      
+      const data = await response.json();
+      const generatedPrompt = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+      
+      if (!generatedPrompt) {
+        throw new Error('未能生成圖片提示詞');
+      }
+      
+      // Show the generated prompt and allow user to copy or use it
+      const userConfirmed = confirm(
+        `AI 已生成圖片提示詞：\n\n${generatedPrompt}\n\n點擊「確定」將提示詞複製到剪貼簿，然後您可以使用圖片生成服務（如 DALL-E、Midjourney）生成圖片後上傳。\n\n點擊「取消」僅查看提示詞。`
+      );
+      
+      if (userConfirmed) {
+        // Copy to clipboard
+        navigator.clipboard.writeText(generatedPrompt).then(() => {
+          alert('提示詞已複製到剪貼簿！\n\n請使用圖片生成服務生成圖片後，將圖片 URL 貼上到圖片欄位。');
+        }).catch(() => {
+          alert(`請手動複製以下提示詞：\n\n${generatedPrompt}`);
+        });
+      }
+      
+    } catch (error) {
+      console.error('AI 生圖錯誤:', error);
+      alert('AI 生圖失敗，請檢查 API 金鑰設置或稍後再試');
+    } finally {
+      if (type === 'cover') {
+        setIsGeneratingCoverImage(false);
+      } else {
+        setIsGeneratingSolutionImage(false);
+      }
+    }
   };
 
   const handleDeleteCase = (id: string) => {
@@ -153,6 +323,48 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     }
   };
 
+  // Tech Domain Handlers
+  const handleSaveTechDomain = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!techDomainForm.name || techDomainForm.count < 0) return;
+    
+    if (editingTechDomainId) {
+      storageService.updateTechDomain(editingTechDomainId, techDomainForm);
+    } else {
+      storageService.addTechDomain(techDomainForm);
+    }
+    
+    setTechDomainForm({ name: '', count: 0 });
+    setEditingTechDomainId(null);
+    setIsEditingTechDomain(false);
+    setIsAddingTechDomain(false);
+    refreshData();
+  };
+
+  const handleEditTechDomain = (techDomain: TechDomain) => {
+    setTechDomainForm({ name: techDomain.name, count: techDomain.count });
+    setEditingTechDomainId(techDomain.id);
+    setIsEditingTechDomain(true);
+    setIsAddingTechDomain(true);
+  };
+
+  const handleDeleteTechDomain = (id: string) => {
+    if(confirm('確認刪除此技術領域?')) {
+      storageService.deleteTechDomain(id);
+      refreshData();
+    }
+  };
+
+  const toggleTechDomainExpand = (id: string) => {
+    const newExpanded = new Set(expandedTechDomains);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedTechDomains(newExpanded);
+  };
+
   const toggleTagSelection = (tagId: string) => {
     if (caseForm.tagIds.includes(tagId)) {
       setCaseForm({...caseForm, tagIds: caseForm.tagIds.filter(id => id !== tagId)});
@@ -167,21 +379,34 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     const allTags = storageService.getAllTags();
     
     const worksheetData = allCases.map(caseItem => {
-      const tagNames = caseItem.tagIds.map(tid => {
+      // Extract industry tags
+      const industryTags = caseItem.tagIds
+        .map(tid => {
+          const tag = allTags.find(t => t.id === tid);
+          return tag && tag.type === CategoryType.INDUSTRY ? tag.name : null;
+        })
+        .filter(Boolean)
+        .join(', ');
+      
+      // Extract all tags
+      const allTagNames = caseItem.tagIds.map(tid => {
         const tag = allTags.find(t => t.id === tid);
         return tag ? tag.name : tid;
       }).join(', ');
       
       return {
-        '案例標題': caseItem.title,
-        '客戶': caseItem.client || '',
-        '上線日期': caseItem.launchDate || '',
-        '建立日期': new Date(caseItem.dateAdded).toLocaleDateString('zh-TW'),
-        '簡要說明': caseItem.description,
-        '標籤': tagNames,
+        '產業別': industryTags || '',
+        '客戶名稱': caseItem.client || '',
+        '項目名稱': caseItem.title,
+        '亮點': caseItem.highlights || '',
+        '建置功能': caseItem.features || '',
+        '摘要概述': caseItem.description,
+        '標籤': allTagNames,
         '封面圖片URL': caseItem.imageUrl,
         '解決方案說明': caseItem.solutionDescription || '',
-        '解決方案圖片URL': caseItem.solutionImageUrl || ''
+        '解決方案圖片URL': caseItem.solutionImageUrl || '',
+        '上線日期': caseItem.launchDate || '',
+        '建立日期': new Date(caseItem.dateAdded).toLocaleDateString('zh-TW')
       };
     });
     
@@ -210,7 +435,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
         const duplicates: Array<{existing: CaseStudy, imported: any, action: 'skip' | 'replace' | 'rename'}> = [];
         
         jsonData.forEach((row: any) => {
-          const title = row['案例標題'] || row['標題'] || '';
+          const title = row['項目名稱'] || row['案例標題'] || row['標題'] || '';
           const existing = existingCases.find(c => c.title === title);
           if (existing) {
             duplicates.push({
@@ -244,7 +469,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     const allTags = storageService.getAllTags();
     
     jsonData.forEach((row: any) => {
-      const title = row['案例標題'] || row['標題'] || '';
+      const title = row['項目名稱'] || row['案例標題'] || row['標題'] || '';
       if (!title) return;
       
       // Find or create tags
@@ -265,13 +490,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       
       storageService.addCase({
         title,
-        description: row['簡要說明'] || row['說明'] || '',
+        description: row['摘要概述'] || row['簡要說明'] || row['說明'] || '',
         imageUrl: row['封面圖片URL'] || row['圖片URL'] || '',
         solutionDescription: row['解決方案說明'] || '',
         solutionImageUrl: row['解決方案圖片URL'] || '',
         tagIds,
-        client: row['客戶'] || '',
-        launchDate: row['上線日期'] || ''
+        client: row['客戶名稱'] || row['客戶'] || '',
+        launchDate: row['上線日期'] || '',
+        highlights: row['亮點'] || '',
+        features: row['建置功能'] || ''
       });
     });
     
@@ -282,17 +509,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const handleDuplicateAction = () => {
     const allTags = storageService.getAllTags();
     const existingCases = storageService.getAllCases();
-    const duplicateTitles = new Set(duplicateCases.map(d => d.imported['案例標題'] || d.imported['標題']));
+    const duplicateTitles = new Set(duplicateCases.map(d => d.imported['項目名稱'] || d.imported['案例標題'] || d.imported['標題']));
     
     // Process all import data
     pendingImportData.forEach((imported: any) => {
-      const title = imported['案例標題'] || imported['標題'] || '';
+      const title = imported['項目名稱'] || imported['案例標題'] || imported['標題'] || '';
       if (!title) return;
       
       const isDuplicate = duplicateTitles.has(title);
       if (isDuplicate) {
         // Handle duplicate based on action
-        const dup = duplicateCases.find(d => (d.imported['案例標題'] || d.imported['標題']) === title);
+        const dup = duplicateCases.find(d => (d.imported['項目名稱'] || d.imported['案例標題'] || d.imported['標題']) === title);
         if (!dup || dup.action === 'skip') return;
         
         const tagNames = (imported['標籤'] || '').split(',').map((t: string) => t.trim()).filter(Boolean);
@@ -311,25 +538,29 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
         
         if (dup.action === 'replace') {
           storageService.updateCase(dup.existing.id, {
-            title: imported['案例標題'] || imported['標題'] || dup.existing.title,
-            description: imported['簡要說明'] || imported['說明'] || dup.existing.description,
+            title: imported['項目名稱'] || imported['案例標題'] || imported['標題'] || dup.existing.title,
+            description: imported['摘要概述'] || imported['簡要說明'] || imported['說明'] || dup.existing.description,
             imageUrl: imported['封面圖片URL'] || imported['圖片URL'] || dup.existing.imageUrl,
             solutionDescription: imported['解決方案說明'] || dup.existing.solutionDescription,
             solutionImageUrl: imported['解決方案圖片URL'] || dup.existing.solutionImageUrl,
             tagIds,
-            client: imported['客戶'] || dup.existing.client,
-            launchDate: imported['上線日期'] || dup.existing.launchDate
+            client: imported['客戶名稱'] || imported['客戶'] || dup.existing.client,
+            launchDate: imported['上線日期'] || dup.existing.launchDate,
+            highlights: imported['亮點'] || dup.existing.highlights,
+            features: imported['建置功能'] || dup.existing.features
           });
         } else if (dup.action === 'rename') {
           storageService.addCase({
-            title: `${imported['案例標題'] || imported['標題']} (匯入)`,
-            description: imported['簡要說明'] || imported['說明'] || '',
+            title: `${imported['項目名稱'] || imported['案例標題'] || imported['標題']} (匯入)`,
+            description: imported['摘要概述'] || imported['簡要說明'] || imported['說明'] || '',
             imageUrl: imported['封面圖片URL'] || imported['圖片URL'] || '',
             solutionDescription: imported['解決方案說明'] || '',
             solutionImageUrl: imported['解決方案圖片URL'] || '',
             tagIds,
-            client: imported['客戶'] || '',
-            launchDate: imported['上線日期'] || ''
+            client: imported['客戶名稱'] || imported['客戶'] || '',
+            launchDate: imported['上線日期'] || '',
+            highlights: imported['亮點'] || '',
+            features: imported['建置功能'] || ''
           });
         }
       } else {
@@ -350,13 +581,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
         
         storageService.addCase({
           title,
-          description: imported['簡要說明'] || imported['說明'] || '',
+          description: imported['摘要概述'] || imported['簡要說明'] || imported['說明'] || '',
           imageUrl: imported['封面圖片URL'] || imported['圖片URL'] || '',
           solutionDescription: imported['解決方案說明'] || '',
           solutionImageUrl: imported['解決方案圖片URL'] || '',
           tagIds,
-          client: imported['客戶'] || '',
-          launchDate: imported['上線日期'] || ''
+          client: imported['客戶名稱'] || imported['客戶'] || '',
+          launchDate: imported['上線日期'] || '',
+          highlights: imported['亮點'] || '',
+          features: imported['建置功能'] || ''
         });
       }
     });
@@ -424,6 +657,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
           >
             標籤分類
           </button>
+          <button 
+            className={`px-8 py-4 font-mono font-bold tracking-wider ${activeTab === 'stats' ? 'text-green-400 border-b-2 border-green-400 bg-white/5' : 'text-slate-500 hover:text-white'}`}
+            onClick={() => setActiveTab('stats')}
+          >
+            統計管理
+          </button>
         </div>
 
         {/* Content Area */}
@@ -445,7 +684,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                   <div key={idx} className="bg-black/40 p-4 rounded border border-yellow-500/30">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
-                        <p className="text-white font-mono font-bold mb-1">案例：{dup.imported['案例標題'] || dup.imported['標題']}</p>
+                        <p className="text-white font-mono font-bold mb-1">案例：{dup.imported['項目名稱'] || dup.imported['案例標題'] || dup.imported['標題']}</p>
                         <p className="text-slate-400 text-xs">現有案例建立於：{new Date(dup.existing.dateAdded).toLocaleDateString('zh-TW')}</p>
                       </div>
                       <div className="flex gap-2">
@@ -521,14 +760,43 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
           {activeTab === 'cases' && (
             <>
               {!isEditingCase && (
-                <div className="flex justify-end mb-6">
-                  <button 
-                    onClick={() => { resetCaseForm(); setIsEditingCase(true); }}
-                    className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-sm shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all font-mono font-bold tracking-wider"
-                  >
-                    <Plus size={18} /> 建立項目
-                  </button>
-                </div>
+                <>
+                  {/* Search and Create Bar */}
+                  <div className="flex flex-col md:flex-row gap-4 mb-6">
+                    {/* Search Box */}
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+                      <input
+                        type="text"
+                        placeholder="搜尋案例（標題、描述、客戶、標籤等）..."
+                        value={caseSearchQuery}
+                        onChange={(e) => setCaseSearchQuery(e.target.value)}
+                        className="w-full bg-black/50 border border-slate-700 rounded-lg h-12 pl-12 pr-4 text-white placeholder-slate-600 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all font-mono"
+                      />
+                      {caseSearchQuery && (
+                        <button
+                          onClick={() => setCaseSearchQuery('')}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                        >
+                          <X size={18} />
+                        </button>
+                      )}
+                    </div>
+                    <button 
+                      onClick={() => { resetCaseForm(); setIsEditingCase(true); }}
+                      className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-sm shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all font-mono font-bold tracking-wider whitespace-nowrap"
+                    >
+                      <Plus size={18} /> 建立項目
+                    </button>
+                  </div>
+
+                  {/* Search Results Info */}
+                  {caseSearchQuery && (
+                    <div className="mb-4 text-sm text-slate-400 font-mono">
+                      找到 {filteredAdminCases.length} 個符合「{caseSearchQuery}」的案例
+                    </div>
+                  )}
+                </>
               )}
 
               {isEditingCase && (
@@ -545,22 +813,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                     <div className="space-y-4">
                       <h4 className="text-white font-mono border-l-4 border-cyan-500 pl-3">層級 1：預覽</h4>
                       <div>
-                        <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1">標題</label>
+                        <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1">項目名稱</label>
                         <input 
                           type="text" 
                           required
                           className="w-full bg-black/50 border border-slate-700 rounded p-3 text-white focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all font-sans"
                           value={caseForm.title}
                           onChange={e => setCaseForm({...caseForm, title: e.target.value})}
+                          placeholder="請輸入項目名稱..."
                         />
                       </div>
                       <div>
                         <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1">封面圖片</label>
-                        <div className="flex gap-2 mb-2">
+                        <div className="flex flex-wrap gap-2 mb-2">
                           <input 
                             type="url" 
                             placeholder="或輸入圖片網址 https://..."
-                            className="flex-1 bg-black/50 border border-slate-700 rounded p-3 text-cyan-300 font-mono text-sm focus:border-cyan-400 focus:outline-none"
+                            className="flex-1 min-w-[200px] bg-black/50 border border-slate-700 rounded p-3 text-cyan-300 font-mono text-sm focus:border-cyan-400 focus:outline-none"
                             value={caseForm.imageUrl}
                             onChange={e => setCaseForm({...caseForm, imageUrl: e.target.value})}
                           />
@@ -570,6 +839,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                             className="px-4 py-2 bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/30 rounded text-cyan-400 text-sm font-mono flex items-center gap-2 transition-colors"
                           >
                             <Upload size={16} /> 上傳
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => generateImageWithAI('cover')}
+                            disabled={isGeneratingCoverImage}
+                            className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded text-purple-400 text-sm font-mono flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isGeneratingCoverImage ? '生成中...' : '🤖 AI生圖'}
                           </button>
                           <input
                             ref={coverImageInputRef}
@@ -589,13 +866,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                         )}
                       </div>
                       <div>
-                        <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1">簡短說明</label>
+                        <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1">摘要概述</label>
                         <textarea 
                           required
                           rows={4}
                           className="w-full bg-black/50 border border-slate-700 rounded p-3 text-white focus:border-cyan-400 focus:outline-none"
                           value={caseForm.description}
                           onChange={e => setCaseForm({...caseForm, description: e.target.value})}
+                          placeholder="請輸入案例的摘要概述..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1">亮點</label>
+                        <textarea 
+                          rows={3}
+                          className="w-full bg-black/50 border border-slate-700 rounded p-3 text-white focus:border-cyan-400 focus:outline-none"
+                          value={caseForm.highlights}
+                          onChange={e => setCaseForm({...caseForm, highlights: e.target.value})}
+                          placeholder="請輸入案例的亮點特色..."
                         />
                       </div>
                     </div>
@@ -605,11 +893,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                       <h4 className="text-white font-mono border-l-4 border-purple-500 pl-3">層級 2：深入分析（解決方案）</h4>
                       <div>
                          <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1">解決方案圖表/圖片</label>
-                        <div className="flex gap-2 mb-2">
+                        <div className="flex flex-wrap gap-2 mb-2">
                           <input 
                             type="url" 
                             placeholder="或輸入圖片網址 https://..."
-                            className="flex-1 bg-black/50 border border-slate-700 rounded p-3 text-purple-300 font-mono text-sm focus:border-purple-400 focus:outline-none"
+                            className="flex-1 min-w-[200px] bg-black/50 border border-slate-700 rounded p-3 text-purple-300 font-mono text-sm focus:border-purple-400 focus:outline-none"
                             value={caseForm.solutionImageUrl}
                             onChange={e => setCaseForm({...caseForm, solutionImageUrl: e.target.value})}
                           />
@@ -619,6 +907,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                             className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded text-purple-400 text-sm font-mono flex items-center gap-2 transition-colors"
                           >
                             <Upload size={16} /> 上傳
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => generateImageWithAI('solution')}
+                            disabled={isGeneratingSolutionImage}
+                            className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded text-purple-400 text-sm font-mono flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isGeneratingSolutionImage ? '生成中...' : '🤖 AI生圖'}
                           </button>
                           <input
                             ref={solutionImageInputRef}
@@ -672,6 +968,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                             onChange={e => setCaseForm({...caseForm, launchDate: e.target.value})}
                           />
                         </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1">建置功能</label>
+                          <textarea 
+                            rows={3}
+                            className="w-full bg-black/50 border border-slate-700 rounded p-3 text-white focus:border-yellow-400 focus:outline-none"
+                            value={caseForm.features}
+                            onChange={e => setCaseForm({...caseForm, features: e.target.value})}
+                            placeholder="請輸入建置的功能特色..."
+                          />
+                        </div>
                       </div>
                     </div>
                     
@@ -707,7 +1013,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
               )}
 
               <div className="grid grid-cols-1 gap-4">
-                {cases.map(item => (
+                {paginatedAdminCases.length > 0 ? (
+                  paginatedAdminCases.map(item => (
                   <div key={item.id} className="flex flex-col md:flex-row gap-4 bg-white/5 p-4 rounded border border-white/10 hover:border-cyan-500/50 transition-all group">
                     <div className="w-full md:w-48 h-32 relative overflow-hidden rounded border border-white/5">
                       <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
@@ -752,8 +1059,106 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                       </button>
                     </div>
                   </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="col-span-full py-16 text-center border border-white/5 rounded-xl bg-black/20">
+                    <p className="text-slate-600 text-lg font-mono">
+                      {caseSearchQuery ? '未找到符合搜尋條件的案例' : '尚無案例資料'}
+                    </p>
+                    {caseSearchQuery && (
+                      <button 
+                        onClick={() => setCaseSearchQuery('')}
+                        className="mt-4 text-cyan-400 hover:text-white underline font-mono text-sm"
+                      >
+                        清除搜尋條件
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
+
+              {/* Pagination Controls for Admin Cases */}
+              {!isEditingCase && filteredAdminCases.length > casesPerPageAdmin && (
+                <div className="mt-8 flex flex-col items-center gap-4">
+                  {/* Page Info */}
+                  <div className="text-slate-400 text-sm font-mono">
+                    顯示第 {adminStartIndex + 1}-{Math.min(adminEndIndex, filteredAdminCases.length)} 個，共 {filteredAdminCases.length} 個案例
+                  </div>
+                  
+                  {/* Pagination Buttons */}
+                  <div className="flex items-center gap-2">
+                    {/* First Page */}
+                    <button
+                      onClick={() => setCurrentCasePage(1)}
+                      disabled={currentCasePage === 1}
+                      className="p-2 bg-black/40 border border-white/10 rounded-lg text-white hover:bg-white/10 hover:border-cyan-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      title="第一頁"
+                    >
+                      <ChevronsLeft size={20} />
+                    </button>
+                    
+                    {/* Previous Page */}
+                    <button
+                      onClick={() => setCurrentCasePage(prev => Math.max(1, prev - 1))}
+                      disabled={currentCasePage === 1}
+                      className="p-2 bg-black/40 border border-white/10 rounded-lg text-white hover:bg-white/10 hover:border-cyan-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      title="上一頁"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    
+                    {/* Page Numbers */}
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, adminTotalPages) }, (_, i) => {
+                        let pageNum;
+                        if (adminTotalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentCasePage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentCasePage >= adminTotalPages - 2) {
+                          pageNum = adminTotalPages - 4 + i;
+                        } else {
+                          pageNum = currentCasePage - 2 + i;
+                        }
+                        
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentCasePage(pageNum)}
+                            className={`px-4 py-2 min-w-[44px] font-mono text-sm rounded-lg transition-all ${
+                              currentCasePage === pageNum
+                                ? 'bg-cyan-600 text-white border border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.5)]'
+                                : 'bg-black/40 text-slate-300 border border-white/10 hover:bg-white/10 hover:border-cyan-500/50'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Next Page */}
+                    <button
+                      onClick={() => setCurrentCasePage(prev => Math.min(adminTotalPages, prev + 1))}
+                      disabled={currentCasePage === adminTotalPages}
+                      className="p-2 bg-black/40 border border-white/10 rounded-lg text-white hover:bg-white/10 hover:border-cyan-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      title="下一頁"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                    
+                    {/* Last Page */}
+                    <button
+                      onClick={() => setCurrentCasePage(adminTotalPages)}
+                      disabled={currentCasePage === adminTotalPages}
+                      className="p-2 bg-black/40 border border-white/10 rounded-lg text-white hover:bg-white/10 hover:border-cyan-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      title="最後一頁"
+                    >
+                      <ChevronsRight size={20} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -823,6 +1228,221 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                 ))}
               </div>
              </>
+          )}
+
+          {/* STATS TAB */}
+          {activeTab === 'stats' && (
+            <>
+              {/* Statistics Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                {/* Success Cases */}
+                <div className="bg-gradient-to-br from-cyan-900/20 to-cyan-950/20 border border-cyan-500/30 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-3 bg-cyan-500/20 rounded-lg">
+                      <Briefcase className="text-cyan-400" size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-slate-400 text-xs uppercase tracking-wider font-mono">成功案例</h3>
+                      <p className="text-2xl font-bold text-white font-mono mt-1">{cases.length}</p>
+                    </div>
+                  </div>
+                  <p className="text-slate-500 text-xs font-mono">用戶 KEY: {cases.length > 0 ? cases[0].id : 'N/A'}</p>
+                </div>
+
+                {/* Solutions */}
+                <div className="bg-gradient-to-br from-green-900/20 to-green-950/20 border border-green-500/30 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-3 bg-green-500/20 rounded-lg">
+                      <Code className="text-green-400" size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-slate-400 text-xs uppercase tracking-wider font-mono">解決方案</h3>
+                      <p className="text-2xl font-bold text-white font-mono mt-1">{cases.length}</p>
+                    </div>
+                  </div>
+                  <p className="text-slate-500 text-xs font-mono">總計案例數量</p>
+                </div>
+
+                {/* Tech Domains */}
+                <div className="bg-gradient-to-br from-purple-900/20 to-purple-950/20 border border-purple-500/30 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-3 bg-purple-500/20 rounded-lg">
+                      <Users className="text-purple-400" size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-slate-400 text-xs uppercase tracking-wider font-mono">技術領域</h3>
+                      <p className="text-2xl font-bold text-white font-mono mt-1">{techDomains.length}</p>
+                    </div>
+                  </div>
+                  <p className="text-slate-500 text-xs font-mono">總計技術項目</p>
+                </div>
+              </div>
+
+              {/* Tech Domains Management */}
+              <div className="mb-8">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-bold text-green-400 font-mono border-l-4 border-green-500 pl-3">技術領域管理</h3>
+                  <button 
+                    onClick={() => {
+                      setIsAddingTechDomain(true);
+                      setIsEditingTechDomain(false);
+                      setEditingTechDomainId(null);
+                      setTechDomainForm({ name: '', count: 0 });
+                    }}
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-sm shadow-[0_0_15px_rgba(34,197,94,0.3)] transition-all font-mono"
+                  >
+                    <Plus size={18} /> 新增技術領域
+                  </button>
+                </div>
+
+                {/* Tech Domain Form */}
+                {isAddingTechDomain && (
+                  <form onSubmit={handleSaveTechDomain} className="mb-6 p-6 bg-white/5 rounded-xl border border-green-500/30 animate-in slide-in-from-top-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="text-lg font-bold text-green-400 font-mono">
+                        {isEditingTechDomain ? '編輯技術領域' : '新增技術領域'}
+                      </h4>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setIsAddingTechDomain(false);
+                          setIsEditingTechDomain(false);
+                          setEditingTechDomainId(null);
+                          setTechDomainForm({ name: '', count: 0 });
+                        }}
+                        className="text-slate-500 hover:text-white"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1">技術名稱</label>
+                        <input 
+                          type="text" 
+                          required
+                          placeholder="例如：JAVA"
+                          className="w-full bg-black/50 border border-slate-700 rounded p-3 text-white focus:border-green-400 focus:outline-none focus:ring-1 focus:ring-green-400 transition-all font-mono"
+                          value={techDomainForm.name}
+                          onChange={e => setTechDomainForm({...techDomainForm, name: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1">人數</label>
+                        <input 
+                          type="number" 
+                          required
+                          min="0"
+                          placeholder="例如：4"
+                          className="w-full bg-black/50 border border-slate-700 rounded p-3 text-white focus:border-green-400 focus:outline-none focus:ring-1 focus:ring-green-400 transition-all font-mono"
+                          value={techDomainForm.count}
+                          onChange={e => setTechDomainForm({...techDomainForm, count: parseInt(e.target.value) || 0})}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-end gap-4 mt-6">
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setIsAddingTechDomain(false);
+                          setIsEditingTechDomain(false);
+                          setEditingTechDomainId(null);
+                          setTechDomainForm({ name: '', count: 0 });
+                        }}
+                        className="px-6 py-2 text-slate-400 hover:text-white font-mono"
+                      >
+                        取消
+                      </button>
+                      <button 
+                        type="submit" 
+                        className="flex items-center gap-2 px-8 py-2 bg-green-600 hover:bg-green-500 rounded-sm text-white font-bold tracking-wide shadow-lg shadow-green-900/50"
+                      >
+                        <Save size={18} /> 儲存
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Tech Domains List */}
+                <div className="space-y-3">
+                  {techDomains.length === 0 ? (
+                    <div className="text-center py-12 border border-white/5 rounded-xl bg-black/20">
+                      <p className="text-slate-600 text-sm font-mono">尚無技術領域資料</p>
+                    </div>
+                  ) : (
+                    techDomains.map(techDomain => (
+                      <div 
+                        key={techDomain.id} 
+                        className="bg-[#0a0a15] border border-white/5 rounded-xl overflow-hidden hover:border-green-500/50 transition-all"
+                      >
+                        {/* Expandable Header */}
+                        <div 
+                          className="flex items-center justify-between p-4 cursor-pointer"
+                          onClick={() => toggleTechDomainExpand(techDomain.id)}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="p-2 bg-green-500/20 rounded-lg">
+                              <Code className="text-green-400" size={20} />
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-bold text-white font-mono">{techDomain.name}</h4>
+                              <p className="text-sm text-slate-400 font-mono">{techDomain.count} 人</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditTechDomain(techDomain);
+                              }}
+                              className="p-2 text-green-400 hover:bg-green-500/10 rounded transition-colors"
+                              title="編輯"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTechDomain(techDomain.id);
+                              }}
+                              className="p-2 text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                              title="刪除"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                            {expandedTechDomains.has(techDomain.id) ? (
+                              <ChevronUp className="text-slate-400" size={20} />
+                            ) : (
+                              <ChevronDown className="text-slate-400" size={20} />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Expanded Content */}
+                        {expandedTechDomains.has(techDomain.id) && (
+                          <div className="px-4 pb-4 pt-2 border-t border-white/5 animate-in slide-in-from-top-2">
+                            <div className="bg-black/30 rounded-lg p-4">
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <span className="text-slate-400 font-mono">技術名稱：</span>
+                                  <span className="text-white font-mono ml-2">{techDomain.name}</span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 font-mono">人數：</span>
+                                  <span className="text-green-400 font-mono ml-2">{techDomain.count} 人</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
           )}
 
         </div>

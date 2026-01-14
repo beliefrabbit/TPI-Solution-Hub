@@ -1,4 +1,4 @@
-import { CaseStudy, Tag, AppState } from '../types';
+import { CaseStudy, Tag, AppState, TechDomain } from '../types';
 import { INITIAL_CASES, INITIAL_TAGS } from '../constants';
 
 const STORAGE_KEY = 'nexus_showcase_db_v2';
@@ -10,7 +10,8 @@ const loadState = (): AppState => {
   }
   return {
     cases: INITIAL_CASES,
-    tags: INITIAL_TAGS
+    tags: INITIAL_TAGS,
+    techDomains: []
   };
 };
 
@@ -23,8 +24,8 @@ export const storageService = {
     const state = loadState();
     return {
       caseCount: state.cases.length,
-      tagCount: state.tags.length,
-      scenarioCount: Math.floor(state.cases.length * 1.5) // Simulated metric
+      tagCount: (state.techDomains && state.techDomains.length > 0) ? state.techDomains.length : state.tags.length,
+      scenarioCount: state.cases.length // Total solutions = total cases
     };
   },
 
@@ -83,6 +84,41 @@ export const storageService = {
       ...c,
       tagIds: c.tagIds.filter(tid => tid !== id)
     }));
+    saveState(state);
+  },
+
+  getAllTechDomains: (): TechDomain[] => {
+    const state = loadState();
+    return state.techDomains || [];
+  },
+
+  addTechDomain: (newTechDomain: Omit<TechDomain, 'id'>): TechDomain => {
+    const state = loadState();
+    if (!state.techDomains) state.techDomains = [];
+    const techDomain: TechDomain = {
+      ...newTechDomain,
+      id: `tech_${Date.now()}`
+    };
+    state.techDomains.push(techDomain);
+    saveState(state);
+    return techDomain;
+  },
+
+  updateTechDomain: (id: string, updatedFields: Partial<TechDomain>): TechDomain | null => {
+    const state = loadState();
+    if (!state.techDomains) return null;
+    const index = state.techDomains.findIndex(t => t.id === id);
+    if (index === -1) return null;
+    
+    state.techDomains[index] = { ...state.techDomains[index], ...updatedFields };
+    saveState(state);
+    return state.techDomains[index];
+  },
+
+  deleteTechDomain: (id: string) => {
+    const state = loadState();
+    if (!state.techDomains) return;
+    state.techDomains = state.techDomains.filter(t => t.id !== id);
     saveState(state);
   },
 
