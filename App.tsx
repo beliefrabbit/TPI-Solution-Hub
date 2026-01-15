@@ -36,8 +36,8 @@ const App: React.FC = () => {
         return {
           title: '成功案例統計',
           items: [
-            { label: '總案例數', value: stats.caseCount },
-            { label: '客戶數量', value: new Set(cases.map(c => c.client).filter(Boolean)).size },
+            { label: '客戶數量', value: stats.caseCount },
+            { label: '總案例數', value: cases.length },
             { label: '產業別', value: new Set(cases.flatMap(c => c.tagIds.map(tid => {
               const tag = tags.find(t => t.id === tid && t.type === CategoryType.INDUSTRY);
               return tag?.name;
@@ -57,7 +57,7 @@ const App: React.FC = () => {
         return {
           title: '解決方案統計',
           items: [
-            { label: '總解決方案數', value: stats.scenarioCount },
+            { label: '成功案例數', value: stats.scenarioCount },
             { label: '有解決方案說明', value: cases.filter(c => c.solutionDescription).length },
             { label: '有解決方案圖片', value: cases.filter(c => c.solutionImageUrl).length },
             { label: '平均標籤數', value: cases.length > 0 ? (cases.reduce((sum, c) => sum + c.tagIds.length, 0) / cases.length).toFixed(1) : 0 }

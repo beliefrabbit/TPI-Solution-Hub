@@ -9,7 +9,7 @@ interface AdminPanelProps {
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
-  const [activeTab, setActiveTab] = useState<'cases' | 'tags' | 'stats'>('cases');
+  const [activeTab, setActiveTab] = useState<'cases' | 'tags' | 'stats' | 'incomplete'>('cases');
   const [cases, setCases] = useState<CaseStudy[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [techDomains, setTechDomains] = useState<TechDomain[]>([]);
@@ -74,6 +74,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     setTags(storageService.getAllTags());
     setTechDomains(storageService.getAllTechDomains());
   };
+
+  // Filter incomplete cases (missing image or content)
+  const incompleteCases = useMemo(() => {
+    return cases.filter(c => {
+      const hasNoImage = !c.imageUrl || c.imageUrl.trim() === '';
+      const hasNoDescription = !c.description || c.description.trim() === '';
+      const hasNoTitle = !c.title || c.title.trim() === '';
+      return hasNoImage || hasNoDescription || hasNoTitle;
+    });
+  }, [cases]);
 
   // Filter and paginate cases for admin panel
   const filteredAdminCases = useMemo(() => {
@@ -316,9 +326,61 @@ ${context}
   };
 
   const handleDeleteCase = (id: string) => {
-    if(confirm('確認刪除此案例？警告：刪除後無法復原。')) {
-      storageService.deleteCase(id);
-      refreshData();
+    const caseToDelete = cases.find(c => c.id === id);
+    const caseTitle = caseToDelete ? caseToDelete.title : '此案例';
+    
+    if(confirm(`確認刪除「${caseTitle}」？\n\n警告：刪除後無法復原。`)) {
+      try {
+        // 先從 localStorage 刪除
+        storageService.deleteCase(id);
+        console.log('案例已從存儲中刪除，ID:', id);
+        
+        // 重新載入所有數據以確保狀態同步
+        const allCases = storageService.getAllCases();
+        const allTags = storageService.getAllTags();
+        const allTechDomains = storageService.getAllTechDomains();
+        
+        // 更新所有狀態
+        setCases(allCases);
+        setTags(allTags);
+        setTechDomains(allTechDomains);
+        
+        // 計算過濾後的案例
+        const remainingFiltered = allCases.filter(c => {
+          if (caseSearchQuery.trim()) {
+            const query = caseSearchQuery.toLowerCase();
+            return c.title.toLowerCase().includes(query) ||
+                   c.description.toLowerCase().includes(query) ||
+                   (c.client && c.client.toLowerCase().includes(query)) ||
+                   (c.highlights && c.highlights.toLowerCase().includes(query)) ||
+                   (c.features && c.features.toLowerCase().includes(query)) ||
+                   c.tagIds.some(tid => {
+                     const tag = allTags.find(t => t.id === tid);
+                     return tag && tag.name.toLowerCase().includes(query);
+                   });
+          }
+          return true;
+        });
+        
+        // 調整分頁
+        const maxPage = Math.ceil(remainingFiltered.length / casesPerPageAdmin);
+        if (maxPage === 0) {
+          setCurrentCasePage(1);
+        } else if (currentCasePage > maxPage) {
+          setCurrentCasePage(maxPage);
+        }
+        
+        setSuccessMessage('案例已成功刪除！');
+        setShowSuccess(true);
+        setTimeout(() => {
+          setShowSuccess(false);
+        }, 3000);
+      } catch (error) {
+        console.error('刪除失敗:', error);
+        alert('刪除失敗，請稍後再試');
+        // 如果刪除失敗，重新載入數據
+        refreshData();
+      }
     }
   };
 
@@ -461,6 +523,28 @@ ${context}
     XLSX.utils.book_append_sheet(workbook, worksheet, '案例資料');
     
     XLSX.writeFile(workbook, `TPI_Solution_Hub_案例資料_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  // Clean cases without images
+  const handleCleanEmptyCases = () => {
+    const allCases = storageService.getAllCases();
+    const casesWithoutImage = allCases.filter(c => !c.imageUrl || c.imageUrl.trim() === '');
+    
+    if (casesWithoutImage.length === 0) {
+      alert('沒有需要清理的案例！所有案例都有圖片。');
+      return;
+    }
+
+    const caseTitles = casesWithoutImage.map(c => c.title).join('\n- ');
+    const confirmed = confirm(
+      `找到 ${casesWithoutImage.length} 個沒有圖片的案例：\n\n- ${caseTitles}\n\n確定要刪除這些案例嗎？此操作無法復原。`
+    );
+
+    if (confirmed) {
+      const result = storageService.cleanCasesWithoutImages();
+      loadData();
+      alert(`清理完成！\n已刪除 ${result.deletedCount} 個案例\n剩餘 ${result.remainingCount} 個案例`);
+    }
   };
   
   // Excel Import
@@ -701,6 +785,13 @@ ${context}
             >
               <Download size={16} /> 匯出 JSON
             </button>
+            <button 
+              onClick={handleCleanEmptyCases}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded text-sm transition-colors text-red-400 font-mono"
+              title="刪除所有沒有圖片的案例"
+            >
+              <AlertTriangle size={16} /> 清理空白案例
+            </button>
             <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white">
               <X size={24} />
             </button>
@@ -726,6 +817,12 @@ ${context}
             onClick={() => setActiveTab('stats')}
           >
             統計管理
+          </button>
+          <button 
+            className={`px-8 py-4 font-mono font-bold tracking-wider ${activeTab === 'incomplete' ? 'text-red-400 border-b-2 border-red-400 bg-white/5' : 'text-slate-500 hover:text-white'}`}
+            onClick={() => setActiveTab('incomplete')}
+          >
+            不完整案例
           </button>
         </div>
 
@@ -1292,6 +1389,124 @@ ${context}
                 ))}
               </div>
              </>
+          )}
+
+          {/* INCOMPLETE CASES TAB */}
+          {activeTab === 'incomplete' && (
+            <>
+              <div className="mb-6 flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-bold text-red-400 font-mono border-l-4 border-red-500 pl-3 mb-2">
+                    不完整案例管理
+                  </h3>
+                  <p className="text-slate-400 text-sm font-mono">
+                    以下案例缺少圖片、標題或描述內容
+                  </p>
+                </div>
+                {incompleteCases.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const count = incompleteCases.length;
+                      if (confirm(`確定要刪除所有 ${count} 個不完整案例嗎？\n\n此操作無法復原！`)) {
+                        incompleteCases.forEach(c => {
+                          storageService.deleteCase(c.id);
+                        });
+                        refreshData();
+                        setSuccessMessage(`已成功刪除 ${count} 個不完整案例！`);
+                        setShowSuccess(true);
+                        setTimeout(() => {
+                          setShowSuccess(false);
+                        }, 3000);
+                      }
+                    }}
+                    className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded-sm shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all font-mono"
+                  >
+                    <Trash2 size={18} /> 一鍵刪除全部 ({incompleteCases.length})
+                  </button>
+                )}
+              </div>
+
+              {incompleteCases.length === 0 ? (
+                <div className="text-center py-20 border border-white/5 rounded-xl bg-black/20">
+                  <CheckCircle className="text-green-400 mx-auto mb-4" size={48} />
+                  <p className="text-slate-400 text-lg font-mono mb-2">太好了！</p>
+                  <p className="text-slate-600 text-sm font-mono">所有案例都完整，沒有缺少內容的案例</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {incompleteCases.map(item => {
+                    const missingItems = [];
+                    if (!item.imageUrl || item.imageUrl.trim() === '') missingItems.push('封面圖片');
+                    if (!item.title || item.title.trim() === '') missingItems.push('標題');
+                    if (!item.description || item.description.trim() === '') missingItems.push('描述');
+
+                    return (
+                      <div 
+                        key={item.id} 
+                        className="bg-[#0a0a15] border border-red-500/30 rounded-xl overflow-hidden hover:border-red-500/50 transition-all"
+                      >
+                        <div className="flex flex-col md:flex-row gap-4 p-4">
+                          <div className="w-full md:w-48 h-32 relative overflow-hidden rounded border border-red-500/20 bg-black/50 flex items-center justify-center">
+                            {item.imageUrl && item.imageUrl.trim() !== '' ? (
+                              <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="text-center">
+                                <AlertTriangle className="text-red-400 mx-auto mb-2" size={32} />
+                                <p className="text-red-400 text-xs font-mono">缺少圖片</p>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <h4 className="text-lg font-bold text-white font-mono mb-1">
+                                  {item.title || <span className="text-red-400">(無標題)</span>}
+                                </h4>
+                                <div className="flex flex-wrap gap-2 mb-2">
+                                  {missingItems.map((missing, idx) => (
+                                    <span 
+                                      key={idx}
+                                      className="px-2 py-1 bg-red-900/30 border border-red-500/30 text-red-300 text-xs font-mono rounded"
+                                    >
+                                      缺少: {missing}
+                                    </span>
+                                  ))}
+                                </div>
+                                {item.client && (
+                                  <p className="text-orange-400 text-sm font-mono mb-1">客戶: {item.client}</p>
+                                )}
+                                <p className="text-slate-400 text-xs font-mono mb-2">
+                                  建立: {new Date(item.dateAdded).toLocaleDateString('zh-TW')}
+                                </p>
+                                {item.description && (
+                                  <p className="text-slate-300 text-sm line-clamp-2">{item.description}</p>
+                                )}
+                              </div>
+                              <div className="flex gap-2 ml-4">
+                                <button
+                                  onClick={() => handleEditClick(item)}
+                                  className="p-2 text-cyan-400 hover:bg-cyan-500/10 rounded transition-colors"
+                                  title="編輯"
+                                >
+                                  <Edit2 size={18} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCase(item.id)}
+                                  className="p-2 text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                                  title="刪除"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
 
           {/* STATS TAB */}

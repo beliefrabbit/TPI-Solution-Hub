@@ -22,10 +22,14 @@ const saveState = (state: AppState) => {
 export const storageService = {
   getStats: () => {
     const state = loadState();
+    // 計算不重複的客戶數量
+    const uniqueClients = new Set(state.cases.map(c => c.client).filter(Boolean));
+    const clientCount = uniqueClients.size;
+    
     return {
-      caseCount: state.cases.length,
+      caseCount: clientCount, // 成功案例顯示客戶數量
       tagCount: (state.techDomains && state.techDomains.length > 0) ? state.techDomains.length : state.tags.length,
-      scenarioCount: state.cases.length // Total solutions = total cases
+      scenarioCount: state.cases.length // 解決方案顯示成功案例數量（案例總數）
     };
   },
 
@@ -131,5 +135,21 @@ export const storageService = {
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
+  },
+
+  // 清理沒有圖片的案例
+  cleanCasesWithoutImages: () => {
+    const state = loadState();
+    const originalCount = state.cases.length;
+    const casesWithoutImage = state.cases.filter(c => !c.imageUrl || c.imageUrl.trim() === '');
+    
+    state.cases = state.cases.filter(c => c.imageUrl && c.imageUrl.trim() !== '');
+    saveState(state);
+    
+    return {
+      deletedCount: originalCount - state.cases.length,
+      remainingCount: state.cases.length,
+      deletedCases: casesWithoutImage.map(c => ({ id: c.id, title: c.title }))
+    };
   }
 };
