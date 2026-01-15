@@ -16,7 +16,23 @@ const loadState = (): AppState => {
 };
 
 const saveState = (state: AppState) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    const dataStr = JSON.stringify(state);
+    const sizeMB = new Blob([dataStr]).size / 1024 / 1024;
+    
+    // 檢查數據大小
+    if (sizeMB > 4.5) {
+      console.warn(`⚠️ 數據大小: ${sizeMB.toFixed(2)} MB，接近 localStorage 限制`);
+    }
+    
+    localStorage.setItem(STORAGE_KEY, dataStr);
+  } catch (error: any) {
+    console.error('儲存失敗:', error);
+    if (error.name === 'QuotaExceededError' || error.code === 22) {
+      throw new Error('localStorage 空間不足，請清除瀏覽器緩存或移除部分數據');
+    }
+    throw error;
+  }
 };
 
 export const storageService = {

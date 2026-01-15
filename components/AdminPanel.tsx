@@ -38,6 +38,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   // Image upload refs
   const coverImageInputRef = useRef<HTMLInputElement>(null);
   const solutionImageInputRef = useRef<HTMLInputElement>(null);
+  const editFormRef = useRef<HTMLFormElement>(null);
   
   // Import/Export states
   const [duplicateCases, setDuplicateCases] = useState<Array<{existing: CaseStudy, imported: any, action: 'skip' | 'replace' | 'rename'}>>([]);
@@ -68,6 +69,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   useEffect(() => {
     refreshData();
   }, []);
+
+  // Handle ESC key to close edit form and prevent body scroll when modal is open
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isEditingCase) {
+        resetCaseForm();
+      }
+    };
+    
+    if (isEditingCase) {
+      document.addEventListener('keydown', handleEscape);
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isEditingCase]);
 
   const refreshData = () => {
     setCases(storageService.getAllCases());
@@ -159,16 +180,93 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       return;
     }
     
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      if (type === 'cover') {
-        setCaseForm({...caseForm, imageUrl: result});
-      } else {
-        setCaseForm({...caseForm, solutionImageUrl: result});
+    // 檔案大小限制：20MB (20 * 1024 * 1024 bytes)
+    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+    if (file.size > MAX_FILE_SIZE) {
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      const confirmed = confirm(
+        `圖片檔案較大 (${fileSizeMB} MB)，轉換為 base64 後可能會超過 localStorage 容量限制。\n\n` +
+        `建議：\n` +
+        `1. 使用圖片 URL（如 Google Drive 連結）\n` +
+        `2. 壓縮圖片後再上傳\n\n` +
+        `仍要繼續上傳嗎？`
+      );
+      if (!confirmed) {
+        return;
       }
-    };
-    reader.readAsDataURL(file);
+    }
+    
+    // 如果檔案超過 5MB，嘗試壓縮
+    const COMPRESS_THRESHOLD = 5 * 1024 * 1024; // 5MB
+    if (file.size > COMPRESS_THRESHOLD) {
+      // 創建圖片並壓縮
+      const img = new Image();
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      img.onload = () => {
+        // 計算壓縮後的尺寸（最大寬度 1920px）
+        const MAX_WIDTH = 1920;
+        const MAX_HEIGHT = 1920;
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+          if (width > height) {
+            height = (height * MAX_WIDTH) / width;
+            width = MAX_WIDTH;
+          } else {
+            width = (width * MAX_HEIGHT) / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // 繪製並壓縮（品質 0.85）
+        ctx?.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        
+        if (type === 'cover') {
+          setCaseForm({...caseForm, imageUrl: compressedDataUrl});
+        } else {
+          setCaseForm({...caseForm, solutionImageUrl: compressedDataUrl});
+        }
+      };
+      
+      img.onerror = () => {
+        // 如果壓縮失敗，使用原始方式
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result as string;
+          if (type === 'cover') {
+            setCaseForm({...caseForm, imageUrl: result});
+          } else {
+            setCaseForm({...caseForm, solutionImageUrl: result});
+          }
+        };
+        reader.readAsDataURL(file);
+      };
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // 小檔案直接讀取
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        if (type === 'cover') {
+          setCaseForm({...caseForm, imageUrl: result});
+        } else {
+          setCaseForm({...caseForm, solutionImageUrl: result});
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSaveCase = (e: React.FormEvent) => {
@@ -208,9 +306,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       setTimeout(() => {
         setShowSuccess(false);
       }, 3000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('儲存失敗:', error);
-      alert('儲存失敗，請稍後再試');
+      const errorMessage = error.message || '儲存失敗，請稍後再試';
+      if (errorMessage.includes('空間不足')) {
+        alert(`儲存失敗：${errorMessage}\n\n建議：\n1. 清除瀏覽器緩存\n2. 移除部分圖片數據\n3. 使用較小的圖片`);
+      } else {
+        alert(`儲存失敗：${errorMessage}`);
+      }
     }
   };
   
@@ -525,25 +628,55 @@ ${context}
     XLSX.writeFile(workbook, `TPI_Solution_Hub_案例資料_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
-  // Clean cases without images
+  // Clean cases without images or with invalid images
   const handleCleanEmptyCases = () => {
     const allCases = storageService.getAllCases();
-    const casesWithoutImage = allCases.filter(c => !c.imageUrl || c.imageUrl.trim() === '');
     
-    if (casesWithoutImage.length === 0) {
-      alert('沒有需要清理的案例！所有案例都有圖片。');
+    // 檢查無法顯示圖片的案例
+    const casesToRemove = allCases.filter(c => {
+      // 沒有封面圖片
+      if (!c.imageUrl || c.imageUrl.trim() === '') {
+        return true;
+      }
+      
+      // 格式無效（不是 http 或 data:image）
+      if (!c.imageUrl.startsWith('http') && !c.imageUrl.startsWith('data:image')) {
+        return true;
+      }
+      
+      // base64 格式錯誤
+      if (c.imageUrl.startsWith('data:image')) {
+        const parts = c.imageUrl.split(',');
+        if (parts.length !== 2 || !parts[1] || parts[1].length === 0) {
+          return true;
+        }
+        // base64 圖片過大（超過 500KB）
+        if (c.imageUrl.length > 500000) {
+          return true;
+        }
+      }
+      
+      return false;
+    });
+    
+    if (casesToRemove.length === 0) {
+      alert('沒有需要清理的案例！所有案例都有有效的圖片。');
       return;
     }
 
-    const caseTitles = casesWithoutImage.map(c => c.title).join('\n- ');
+    const caseTitles = casesToRemove.slice(0, 10).map(c => c.title).join('\n- ');
+    const moreText = casesToRemove.length > 10 ? `\n... 還有 ${casesToRemove.length - 10} 個案例` : '';
+    
     const confirmed = confirm(
-      `找到 ${casesWithoutImage.length} 個沒有圖片的案例：\n\n- ${caseTitles}\n\n確定要刪除這些案例嗎？此操作無法復原。`
+      `找到 ${casesToRemove.length} 個無法顯示圖片的案例：\n\n- ${caseTitles}${moreText}\n\n確定要刪除這些案例嗎？此操作無法復原。`
     );
 
     if (confirmed) {
-      const result = storageService.cleanCasesWithoutImages();
-      loadData();
-      alert(`清理完成！\n已刪除 ${result.deletedCount} 個案例\n剩餘 ${result.remainingCount} 個案例`);
+      casesToRemove.forEach(c => {
+        storageService.deleteCase(c.id);
+      });
+      refreshData();
+      alert(`清理完成！\n已刪除 ${casesToRemove.length} 個案例\n剩餘 ${allCases.length - casesToRemove.length} 個案例`);
     }
   };
   
@@ -785,13 +918,6 @@ ${context}
             >
               <Download size={16} /> 匯出 JSON
             </button>
-            <button 
-              onClick={handleCleanEmptyCases}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded text-sm transition-colors text-red-400 font-mono"
-              title="刪除所有沒有圖片的案例"
-            >
-              <AlertTriangle size={16} /> 清理空白案例
-            </button>
             <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white">
               <X size={24} />
             </button>
@@ -961,13 +1087,37 @@ ${context}
               )}
 
               {isEditingCase && (
-                <form onSubmit={handleSaveCase} className="mb-8 p-8 bg-white/5 rounded-xl border border-cyan-500/30 animate-in slide-in-from-top-4">
-                  <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-                    <h3 className="text-xl font-bold text-cyan-400 font-mono">
-                      {editingCaseId ? '編輯安全記錄' : '新增安全記錄'}
-                    </h3>
-                    <button type="button" onClick={resetCaseForm} className="text-slate-500 hover:text-white"><X size={20}/></button>
-                  </div>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 animate-in fade-in duration-200">
+                  {/* Backdrop */}
+                  <div 
+                    className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+                    onClick={resetCaseForm}
+                  ></div>
+                  
+                  {/* Modal Content */}
+                  <form 
+                    ref={editFormRef}
+                    onSubmit={handleSaveCase} 
+                    className="relative w-full max-w-5xl max-h-[90vh] bg-[#05050a] border border-cyan-500/30 rounded-3xl shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-y-auto"
+                    style={{ zIndex: 101 }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Close Button */}
+                    <button 
+                      type="button"
+                      onClick={resetCaseForm}
+                      className="absolute top-4 right-4 z-[102] p-2 bg-black/70 hover:bg-red-500/20 text-white rounded-full backdrop-blur-md transition-all border-2 border-white/20 hover:border-red-400/50 shadow-[0_0_20px_rgba(0,0,0,0.5)] hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] group"
+                      title="關閉 (ESC)"
+                    >
+                      <X size={19} className="group-hover:rotate-90 transition-transform duration-300" />
+                    </button>
+
+                    <div className="p-8">
+                      <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                        <h3 className="text-xl font-bold text-cyan-400 font-mono">
+                          {editingCaseId ? '編輯安全記錄' : '新增安全記錄'}
+                        </h3>
+                      </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Layer 1 Info */}
@@ -989,7 +1139,7 @@ ${context}
                         <div className="flex flex-wrap gap-2 mb-2">
                           <input 
                             type="url" 
-                            placeholder="或輸入圖片網址 https://..."
+                            placeholder="或輸入圖片網址 https://... (支援 Google Drive 連結)"
                             className="flex-1 min-w-[200px] bg-black/50 border border-slate-700 rounded p-3 text-cyan-300 font-mono text-sm focus:border-cyan-400 focus:outline-none"
                             value={caseForm.imageUrl}
                             onChange={e => setCaseForm({...caseForm, imageUrl: e.target.value})}
@@ -1057,7 +1207,7 @@ ${context}
                         <div className="flex flex-wrap gap-2 mb-2">
                           <input 
                             type="url" 
-                            placeholder="或輸入圖片網址 https://..."
+                            placeholder="或輸入圖片網址 https://... (支援 Google Drive 連結)"
                             className="flex-1 min-w-[200px] bg-black/50 border border-slate-700 rounded p-3 text-purple-300 font-mono text-sm focus:border-purple-400 focus:outline-none"
                             value={caseForm.solutionImageUrl}
                             onChange={e => setCaseForm({...caseForm, solutionImageUrl: e.target.value})}
@@ -1089,8 +1239,15 @@ ${context}
                           />
                         </div>
                         {caseForm.solutionImageUrl && (
-                          <div className="mt-2 w-full h-32 rounded border border-white/10 overflow-hidden">
-                            <img src={caseForm.solutionImageUrl} alt="預覽" className="w-full h-full object-cover" />
+                          <div className="mt-2 w-full h-64 md:h-80 rounded border border-white/10 overflow-hidden bg-black/30">
+                            <img src={caseForm.solutionImageUrl} alt="預覽" className="w-full h-full object-contain" onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const parent = target.parentElement;
+                              if (parent) {
+                                parent.innerHTML = '<div class="flex items-center justify-center h-full text-red-400 text-sm">圖片無法載入，請檢查網址</div>';
+                              }
+                            }} />
                           </div>
                         )}
                       </div>
@@ -1102,6 +1259,16 @@ ${context}
                           className="w-full bg-black/50 border border-slate-700 rounded p-3 text-white focus:border-purple-400 focus:outline-none"
                           value={caseForm.solutionDescription}
                           onChange={e => setCaseForm({...caseForm, solutionDescription: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1">建置功能</label>
+                        <textarea 
+                          rows={3}
+                          className="w-full bg-black/50 border border-slate-700 rounded p-3 text-white focus:border-purple-400 focus:outline-none"
+                          value={caseForm.features}
+                          onChange={e => setCaseForm({...caseForm, features: e.target.value})}
+                          placeholder="請輸入建置的功能特色..."
                         />
                       </div>
                     </div>
@@ -1129,16 +1296,6 @@ ${context}
                             onChange={e => setCaseForm({...caseForm, launchDate: e.target.value})}
                           />
                         </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1">建置功能</label>
-                          <textarea 
-                            rows={3}
-                            className="w-full bg-black/50 border border-slate-700 rounded p-3 text-white focus:border-yellow-400 focus:outline-none"
-                            value={caseForm.features}
-                            onChange={e => setCaseForm({...caseForm, features: e.target.value})}
-                            placeholder="請輸入建置的功能特色..."
-                          />
-                        </div>
                       </div>
                     </div>
                     
@@ -1164,13 +1321,15 @@ ${context}
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-4 mt-8">
-                    <button type="button" onClick={resetCaseForm} className="px-6 py-2 text-slate-400 hover:text-white font-mono">取消操作</button>
-                    <button type="submit" className="flex items-center gap-2 px-8 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-sm text-white font-bold tracking-wide shadow-lg shadow-cyan-900/50">
-                      <Save size={18} /> 儲存記錄
-                    </button>
-                  </div>
-                </form>
+                      <div className="flex justify-end gap-4 mt-8">
+                        <button type="button" onClick={resetCaseForm} className="px-6 py-2 text-slate-400 hover:text-white font-mono">取消操作</button>
+                        <button type="submit" className="flex items-center gap-2 px-8 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-sm text-white font-bold tracking-wide shadow-lg shadow-cyan-900/50">
+                          <Save size={18} /> 儲存記錄
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
               )}
 
               <div className="grid grid-cols-1 gap-4">
