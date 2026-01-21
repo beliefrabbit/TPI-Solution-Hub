@@ -31,7 +31,7 @@ npm install
 
 ### 環境變數設置
 
-創建 `.env.local` 文件並設置：
+創建 `.env.local` 文件並設置（用於伺服器端 Gemini Proxy）：
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here

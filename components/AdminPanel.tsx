@@ -386,7 +386,8 @@ ${context}
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || 'API 請求失敗');
+        const errorMessage = errorData.error?.message || errorData.error || 'API 請求失敗';
+        throw new Error(errorMessage);
       }
       
       const data = await response.json();
@@ -412,7 +413,12 @@ ${context}
       
     } catch (error) {
       console.error('AI 生圖錯誤:', error);
-      alert('AI 生圖失敗，請檢查 API 金鑰設置或稍後再試');
+      const errorMessage = error instanceof Error ? error.message : 'AI 生圖失敗';
+      if (errorMessage.includes('Server API key is not configured')) {
+        alert('AI 生圖失敗，請先在伺服器設定 GEMINI_API_KEY');
+      } else {
+        alert('AI 生圖失敗，請稍後再試');
+      }
     } finally {
       if (type === 'cover') {
         setIsGeneratingCoverImage(false);

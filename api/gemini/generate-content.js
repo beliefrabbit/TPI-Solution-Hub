@@ -4,13 +4,14 @@ export default async function handler(req, res) {
     return;
   }
 
-  const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     res.status(500).json({ error: 'Server API key is not configured.' });
     return;
   }
 
   try {
+    const payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
       {
@@ -18,7 +19,7 @@ export default async function handler(req, res) {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(req.body)
+        body: JSON.stringify(payload)
       }
     );
 

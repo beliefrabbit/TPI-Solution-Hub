@@ -15,16 +15,12 @@ export default defineConfig(({ mode }) => {
             secure: true,
             rewrite: (path) => path.replace(
               '/api/gemini/generate-content',
-              `/v1beta/models/gemini-pro:generateContent?key=${env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY || ''}`
+              `/v1beta/models/gemini-pro:generateContent?key=${env.GEMINI_API_KEY || ''}`
             )
           }
         }
       },
       plugins: [react()],
-      define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-      },
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
