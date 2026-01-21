@@ -319,12 +319,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   
   // AI Image Generation using Gemini API
   const generateImageWithAI = async (type: 'cover' | 'solution') => {
-    const apiKey = import.meta.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      alert('請先設置 GEMINI_API_KEY 環境變數');
-      return;
-    }
-    
     if (type === 'cover') {
       setIsGeneratingCoverImage(true);
     } else {
@@ -376,7 +370,7 @@ ${context}
 請只輸出圖片生成提示詞，不要包含其他說明文字。`;
       
       // Call Gemini API to generate image prompt
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+      const response = await fetch('/api/gemini/generate-content', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
