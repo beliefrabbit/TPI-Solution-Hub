@@ -3,18 +3,6 @@ import { INITIAL_CASES, INITIAL_TAGS } from '../constants';
 
 const STORAGE_KEY = 'nexus_showcase_db_v2';
 
-const loadState = (): AppState => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    return JSON.parse(stored);
-  }
-  return {
-    cases: INITIAL_CASES,
-    tags: INITIAL_TAGS,
-    techDomains: []
-  };
-};
-
 const saveState = (state: AppState) => {
   try {
     const dataStr = JSON.stringify(state);
@@ -33,6 +21,40 @@ const saveState = (state: AppState) => {
     }
     throw error;
   }
+};
+
+const loadState = (): AppState => {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored) {
+    const state = JSON.parse(stored);
+    
+    // 合併初始案例：找出 localStorage 中不存在的初始案例 ID，並添加它們
+    const existingCaseIds = new Set(state.cases.map((c: CaseStudy) => c.id));
+    const missingInitialCases = INITIAL_CASES.filter(c => !existingCaseIds.has(c.id));
+    
+    if (missingInitialCases.length > 0) {
+      // 將缺失的初始案例添加到現有案例中
+      state.cases = [...missingInitialCases, ...state.cases];
+      // 保存更新後的狀態
+      saveState(state);
+    }
+    
+    // 合併初始標籤：確保所有初始標籤都存在
+    const existingTagIds = new Set(state.tags.map((t: Tag) => t.id));
+    const missingInitialTags = INITIAL_TAGS.filter(t => !existingTagIds.has(t.id));
+    
+    if (missingInitialTags.length > 0) {
+      state.tags = [...state.tags, ...missingInitialTags];
+      saveState(state);
+    }
+    
+    return state;
+  }
+  return {
+    cases: INITIAL_CASES,
+    tags: INITIAL_TAGS,
+    techDomains: []
+  };
 };
 
 export const storageService = {

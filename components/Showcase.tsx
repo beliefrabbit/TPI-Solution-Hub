@@ -275,11 +275,6 @@ const Showcase: React.FC<ShowcaseProps> = ({ cases, tags }) => {
                 ) : (
                   <ParticleQuestionMark width={400} height={224} className="w-full h-full" />
                 )}
-                <div className="absolute top-0 right-0 p-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                   <div className="bg-cyan-500 text-black px-3 py-1 font-mono text-xs font-bold rounded-sm shadow-[0_0_10px_rgba(6,182,212,0.8)]">
-                      存取
-                   </div>
-                </div>
               </div>
 
               {/* Content */}
