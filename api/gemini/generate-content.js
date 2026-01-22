@@ -1,13 +1,12 @@
+// Vercel Serverless Function
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method Not Allowed' });
-    return;
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: 'Server API key is not configured.' });
-    return;
+    return res.status(500).json({ error: 'Server API key is not configured.' });
   }
 
   try {
@@ -23,8 +22,8 @@ export default async function handler(req, res) {
     );
 
     const data = await response.json();
-    res.status(response.status).json(data);
+    return res.status(response.status).json(data);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to reach Gemini API.' });
+    return res.status(500).json({ error: 'Failed to reach Gemini API.' });
   }
 }
